@@ -1,0 +1,54 @@
+Nivel: 🟢 Junior
+Puntaje: 17/23
+
+📚 Documentación
+❌ Explica cómo correr el código. ✓ "npm i" y "npm start" claramente indicados
+✓ Documenta la versión de la tecnología. ✗ Falta versión de Node.js en package.json (solo tiene versiones de dependencias)
+❌ Explica cómo funciona el código o qué decisiones tomó. ✗ No hay explicación de arquitectura (¿por qué Koa?) ni algoritmo (¿qué búsqueda usa?)
+
+👨‍💻 Usabilidad
+✓ El output es consistente. Ambas partes devuelven JSON vía HTTP
+✓ Parametriza los archivos. Usa config/development.json para sourceFolder, numberOfFiles, fileFormat
+❌ No hardcodea nombres de archivos. ✗ Hardcodea el prefijo 'u' en: sourceFolder + 'u' + i + format
+✓ No hardcodea cantidad de archivos. ✓ numberOfFiles es parametrizable vía config
+✓ No hardcodea providers. ✓ CRÍTICO: nunca menciona nombres de providers en código
+❌ Imprime la salida como en la letra. ✗ No es bonus (letra tiene JSON inválido, candidato no lo detectó)
+
+🍝 Calidad del código
+✓ Es consistente con la nomenclatura. ✓ camelCase en todas partes (testA, addUsersAuth, candSolCopy)
+❌ Los comentarios son adecuados. ✗ Sin comentarios explicando la lógica
+✓ No hay comentarios excesivos. ✓ Código limpio sin commented-out blocks
+✓ Escribe de acuerdo a convenciones. ✓ Koa MVC pattern, CommonJS, async/await
+✓ Divide el problema en funciones. ✓ Service class, testA(), testB(), addUsersAuth(), etc.
+✓ No repite el código de la Parte A. ✓ testB() reutiliza testA() en lugar de copy-paste
+❌ No hay código duplicado. ✗ addUsersAuth() y addUsersContent() tienen estructura idéntica (DRY violation)
+✓ No tiene código mal indentado. ✓ Indentación consistente (2 espacios)
+✓ No tiene formato irregular. ✓ Clean formatting
+❌ Tiene error handling. ✗ try/catch presentes pero solo rethrow: throw error sin lógica adicional
+
+🛠 Eficacia y Eficiencia
+✓ Parte A correcta. ✓ Todos los usuarios agrupados correctamente en 8 providers
+✓ Consigue un set que cubre todos los módulos. ✓ Cubre los 8 módulos requeridos
+✓ Busca un set reducido. ✓ Retorna 4 usuarios en lugar de todos los 20
+✓ Asegura el set mínimo. ✓ BONUS: resultado es exactamente 4 usuarios (óptimo)
+
+⭐ Aspectos que destacan:
+(+) Solución funcional con ambas partes correctas
+(+) Resultado óptimo de 4 usuarios cubriendo todos los módulos
+(+) Arquitectura bien organizada (Koa MVC pattern)
+(+) Algoritmo exhaustivo encontró la solución mínima
+(-) Falta documentación de versión de Node.js
+(-) No explica decisiones de diseño
+
+📝 Otras notas:
+• Candidate built a web server instead of CLI scripts - arquitectura más sofisticada pero también más compleja
+• Código tiene duplicación entre handlers de auth y content (podrían extraerse a un helper)
+• El algoritmo de búsqueda funciona pero sin documentación es difícil entender la estrategia
+
+🎁 Feedback para el candidato:
+Excelente trabajo: tu solución funciona perfectamente y encontró el óptimo. Para llevar esto al siguiente nivel:
+1. Documenta la versión de Node.js requerida (ej: ">=14.0" en package.json engines)
+2. Explica en el README por qué elegiste Koa (framework escalable, middleware) y qué algoritmo de búsqueda usas (backtracking/exhaustive)
+3. Añade comentarios en el método dynamicProgrammingMethod explicando la estrategia
+4. Extrae la lógica duplicada de addUsersAuth y addUsersContent a un helper genérico
+Con estos cambios sería semi-senior.

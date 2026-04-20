@@ -1,0 +1,119 @@
+=== CORRECCIÓN TÉCNICA - PRUEBA 3 (Java) ===
+
+CANDIDATO: No especificado
+TECNOLOGÍA: Java 8
+TIEMPO REPORTADO: No reportado (README refiere a ejecución manual en IDE)
+NIVEL ASIGNADO: No suficiente (🔴)
+PUNTAJE: 14/23
+
+---
+
+ERRORES CRÍTICOS (Causan nivel "No suficiente")
+=================================================
+
+1. PARTE A - FORMATO DE OUTPUT INCORRECTO (F28 = 0)
+   Problema: Las claves del JSON de salida están capitalizadas
+   - Output actual: {"Content_module": {...}, "Auth_module": {...}}
+   - Output esperado: {"content_module": {...}, "auth_module": {...}}
+   Ubicación: ParteA.java, línea donde hace el put() con "Content_module" y "Auth_module"
+   Impacto: Validador rechaza el formato, Parte A marked as INCORRECT
+
+2. PARTE B - ALGORITMO DEFECTUOSO (F29 = 0)
+   Problema: El algoritmo retorna una lista VACÍA en lugar del conjunto mínimo de usuarios
+   Causa raíz: La lógica verifica si AMBOS módulos tienen >1 usuario y elimina al usuario
+   - Con los 20 usuarios de prueba, todos los usuarios satisfacen esta condición
+   - Resultado: todos son removidos, output = []
+   Lógica actual (INCORRECTA):
+   ```
+   Si content_module.count > 1 Y auth_module.count > 1:
+       remove(usuario)
+   ```
+   Lógica esperada: Implementar Set Cover Problem solver (greedy o backtracking)
+
+---
+
+DEFECTOS SECUNDARIOS (F3, F5, F9, F13, F19)
+==============================================
+
+F3: README refiere a clicks en IDE ("click derecho... botón run")
+    Debería: Explicitar comando de línea (e.g., "javac *.java && java main")
+    
+F5: Sin explicación de decisiones de diseño o limitaciones del algoritmo
+    
+F9: Path de entrada hardcodeado: "./src/qualabs/input"
+    Debería: Parametrizarse (args, variable de config, etc.)
+    
+F13: Output no sigue formato exacto de la letra (capitalizaciones inconsistentes)
+    
+F19: Archivo "main.java" debería ser "Main.java" (convención Java: nombre clase = nombre archivo)
+
+---
+
+PUNTOS POSITIVOS (F4, F8, F10, F11, F12, F16-F18, F20-F25)
+===========================================================
+
+✅ Documenta versión Java (1.8.0_261)
+✅ Output consistente (ambas partes a consola)
+✅ No hardcodea nombres de archivos
+✅ No hardcodea cantidad de archivos (usa File.listFiles())
+✅ No hardcodea providers (crítico positivo)
+✅ Nomenclatura camelCase consistente
+✅ Comentarios útiles sin exceso
+✅ Código dividido en funciones/métodos
+✅ Sin duplicación de código
+✅ Manejo de excepciones con try-catch
+
+---
+
+RECOMENDACIONES PARA EL CANDIDATO
+==================================
+
+1. Revisar especificación: Los formatos de output deben coincidir EXACTAMENTE (mayúsculas/minúsculas, estructura)
+
+2. Estudiar algoritmos de optimización:
+   - Set Cover Problem: NP-hard, pero tratable con datos pequeños
+   - Enfoque greedy: Selecciona en cada paso el usuario que cubre más módulos sin cubrir
+   - Enfoque exhaustivo: Backtracking para garantizar el óptimo
+
+3. Agregar validación en tests:
+   - Verificar output contra formato esperado
+   - Probar con datos de prueba antes de entregar
+   - Usar examples en la especificación como test cases
+
+4. Mejoras de código:
+   - Cambiar "main.java" a "Main.java"
+   - Parametrizar directorio de entrada
+   - Agregar comentarios explicando el algoritmo
+   - Considerar agregar logging o output de debug
+
+5. Estructura propuesta para Parte B (pseudocódigo):
+   ```
+   uncovered_modules = {todos los 8 módulos}
+   selected_users = []
+   
+   while uncovered_modules is not empty:
+       best_user = null
+       best_count = 0
+       
+       for each user:
+           count = modules_covered_by_user AND uncovered_modules
+           if count > best_count:
+               best_user = user
+               best_count = count
+       
+       selected_users.add(best_user)
+       uncovered_modules.remove(modules_covered_by_best_user)
+   
+   return selected_users
+   ```
+
+---
+
+RESUMEN EJECUTIVO
+=================
+Candidato demuestra comprensión de Java y buena estructuración de código.
+Sin embargo, dos errores críticos (formato de Parte A y lógica de Parte B)
+impiden que la solución sea funcional. Se requiere revisión completa del
+algoritmo de optimización combinatoria.
+
+Recomendación: RECHAZO - Solicitar correcciones antes de considerar aceptación.

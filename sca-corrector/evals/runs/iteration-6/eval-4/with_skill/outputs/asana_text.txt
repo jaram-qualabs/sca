@@ -1,0 +1,49 @@
+Nivel: 🟡 Trainee
+Puntaje: 17/23
+
+📚 Documentación
+✅ Explica cómo correr el código. README menciona: cd qualabsTest, npm i, npm start. Endpoints documentados.
+❌ Documenta la versión de la tecnología. No hay versión de Node.js explícita. package.json tiene versiones de dependencias pero sin campo "engines" para Node.
+❌ Explica elecciones o decisiones. README solo indica CÓMO correr, sin explicar POR QUÉ se eligió este enfoque, la complejidad del algoritmo, o razonamiento técnico.
+
+👨‍💻 Usabilidad
+✅ El output es consistente entre partes. Ambas devuelven JSON vía HTTP endpoints.
+✅ Parametriza los archivos. Usa Config module: sourceFolder, numberOfFiles, fileFormat desde config/development.json.
+✅ No hardcodea nombres de archivos. Construcción dinámica: 'u' + i + format.
+✅ No hardcodea cantidad de archivos. numberOfFiles desde Config.get().
+✅ No hardcodea providers. ✅ CRÍTICO. Utiliza valores dinámicos de los JSON: modulesForUser.provider.auth_module/content_module.
+❌ Imprime salida como en la letra. No aplica (bonus), JSON es válido.
+
+🍝 Calidad del código
+✅ Nomenclatura consistente. camelCase en todo: testA, testB, addUsersAuth, addUsersContent, modulesForUser, sourceFolder.
+❌ Comentarios adecuados. El código tiene muy pocos comentarios. No hay explicación de la lógica de búsqueda.
+✅ Sin comentarios excesivos. No hay código comentado ni ruido.
+✅ Sigue convenciones de tecnología. Node.js: const/let, module.exports, async/await, camelCase. ✅ Convenciones JS respetadas.
+✅ Divide en funciones pequeñas. Métodos separados: testA(), testB(), addUsersAuth(), addUsersContent(), dynamicProgrammingMethod(), isASolution(), getBestSolution(). Cada uno con responsabilidad única.
+✅ No repite código de Parte A. testB() llama a testA(), sin copy-paste.
+✅ Sin código duplicado. Estructura limpia, sin lógica repetida.
+✅ Sin código mal indentado. Indentación correcta.
+✅ Sin formato irregular. Espaciado y formato consistente.
+✅ Tiene error handling. Try/catch en controller (testA, testB) y en service (testA, testB).
+
+🛠 Eficacia y Eficiencia
+✅ Parte A correcta. ✅ CRÍTICO. Validador confirma: usuarios correctamente agrupados por provider.
+✅ Parte B cubre todos los módulos. ✅ CRÍTICO. Validador confirma: 4 usuarios cubren los 8 módulos (authn.provider_1-4, authz.provider_1-4).
+✅ Busca set reducido. Devuelve 4 usuarios, no todos los 20.
+✅ Asegura set mínimo. ✅ BONUS. Exactamente 4 usuarios (óptimo para 8 módulos).
+
+⭐ Aspectos que destacan:
+(+) Arquitectura bien organizada: separación clara entre Controller, Service, y Config. Cada componente tiene responsabilidad única.
+(+) Ambas partes resuelven el problema correctamente. Los validadores confirman lógica de Parte A y cobertura de módulos de Parte B.
+(+) Error handling robusto en endpoints.
+(-) Documentación muy básica. README no explica decisiones técnicas ni las limitaciones del algoritmo.
+(-) Escasos comentarios en código que expliquen la lógica de búsqueda (dynamicProgrammingMethod).
+
+📝 Otras notas:
+El código es funcional y bien estructurado para un Junior/Trainee. El algoritmo encuentza la solución óptima de 4 usuarios. Sin embargo, faltan explicaciones de diseño y documentación de versión de runtime, lo que afecta la clasificación.
+
+🎁 Feedback:
+1. Documenta la versión de Node.js. Agregá en package.json: "engines": { "node": "14.x" } (o tu versión). O en README: "Requiere Node.js 14+".
+2. Explica decisiones técnicas. En README, una sección "Decisiones" explicando: por qué elegiste este enfoque de búsqueda, la complejidad, por qué 4 es el mínimo óptimo (8 módulos, ~2 por usuario).
+3. Agregá comentarios en code. Al menos en dynamicProgrammingMethod(), explicá la lógica de backtracking y cómo asegura cobertura.
+4. Considera explicar qué hace que la solución sea mínima (o cómo lo verificas).

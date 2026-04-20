@@ -1,0 +1,20 @@
+-- Parte A --
+
+Para usar la parte A ejecutar el siguiente comando en la consola, parado sobre la carpeta que contiene los json a utilizar y el código:
+
+python parteA.py
+
+Se puede pasar un parametro --path que indica la ruta relativa de los archivos json
+
+Tiempo: 1:12
+
+-- Parte B --
+
+Para usar la parte B ejecutar el siguiente comando en la consola, parado sobre la carpeta que contiene los json a utilizar y el código:
+
+python parteB.py
+
+Se implementó una solución greedy del minimal hitting set problem. Como en este caso cada usuario requiere 2 proveedores y hay 8 proveedores en total, 
+la cantidad de usuarios necesariemente tiene que ser mayor o igual que 4.
+
+Tiempo: 2:26

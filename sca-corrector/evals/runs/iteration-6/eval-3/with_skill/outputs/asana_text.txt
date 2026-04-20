@@ -1,0 +1,64 @@
+🔴 Nivel: No suficiente
+Puntaje: 14/23
+
+📚 Documentación
+❌ Explica cómo correr el código (refiere a clicks en IDE en lugar de comando explícito)
+✅ Documenta la versión de la tecnología (Java 1.8.0_261)
+❌ Explica elecciones o decisiones (solo instrucciones de ejecución)
+
+👨‍💻 Usabilidad
+✅ El output es consistente entre partes (ambas por consola)
+❌ Parametriza los archivos de entrada (path hardcodeado ./src/qualabs/input)
+✅ No hardcodea nombres de archivos específicos
+✅ No hardcodea cantidad de archivos (usa File.listFiles())
+✅ No hardcodea providers ✅ CRÍTICO PASS
+❌ Imprime salida como en la letra
+
+🍝 Calidad del código
+✅ Nomenclatura consistente (camelCase)
+✅ Comentarios adecuados y útiles
+✅ Sin comentarios excesivos
+❌ Sigue convenciones de la tecnología (main.java debería ser Main.java)
+✅ Divide en funciones pequeñas (métodos en ParteA y ParteB)
+✅ No repite código de Parte A
+✅ Sin código duplicado
+✅ Sin código mal indentado
+✅ Sin formato irregular
+✅ Tiene error handling (try-catch blocks)
+
+🛠 Eficacia y Eficiencia
+❌ Parte A correcta ❌ CRÍTICO - Keys capitalizadas: "Content_module"/"Auth_module" en lugar de "content_module"/"auth_module"
+❌ Parte B cubre módulos ❌ CRÍTICO - Algoritmo defectuoso retorna lista vacía
+❌ Busca set reducido
+❌ Asegura set mínimo
+
+⭐ Aspectos que destacan:
+(+) Código bien estructurado con separación de responsabilidades en clases ParteA y ParteB
+(+) Manejo de excepciones implementado correctamente en lectura de archivos JSON
+(+) Uso inteligente de File.listFiles() para evitar hardcodear cantidad de archivos
+(-) Algoritmo de Parte B fundamentalmente erróneo
+
+📝 Notas de corrección:
+1. CRÍTICO: Parte A usa claves capitalizadas "Content_module" y "Auth_module" cuando debería usar "content_module" y "auth_module". Esto causa que la validación falle.
+
+2. CRÍTICO: El algoritmo de Parte B es defectuoso. La lógica actual elimina usuarios si AMBOS sus módulos (content_module y auth_module) tienen más de 1 usuario. Con los datos de prueba, todos los usuarios satisfacen esta condición, resultando en una lista vacía como output.
+
+3. El problema requiere resolver un "Set Cover Problem" - encontrar el mínimo conjunto de usuarios que cubra todos los 8 módulos (4 de autenticación + 4 de autorización). Se recomienda implementar un algoritmo greedy o backtracking.
+
+4. El archivo main.java viola convenciones de Java (debería ser Main.java para que el nombre de la clase coincida con el del archivo).
+
+5. La parametrización del directorio de entrada está hardcodeada. Se debería pasar como argumento o variable de configuración.
+
+🎁 Feedback para el candidato:
+El código está bien estructurado desde una perspectiva de arquitectura y utiliza correctamente APIs de Java. Sin embargo, hay dos problemas críticos que impiden que la solución sea funcional:
+
+1. El formato de output de Parte A no coincide con la especificación (keys deben ser lowercase).
+2. El algoritmo de Parte B no implementa correctamente la lógica de optimización combinatoria necesaria para el Set Cover Problem.
+
+Te recomiendo:
+- Revisar cuidadosamente los tipos de datos y formatos esperados en la especificación
+- Estudiar algoritmos clásicos de optimización combinatoria (Set Cover, Knapsack)
+- Considerar implementar soluciones greedy como punto de partida para problemas NP-hard
+- Agregar tests unitarios para validar outputs contra ejemplos conocidos
+
+La estructura del código es sólida - enfócate en corregir la lógica del algoritmo y los detalles de formato.

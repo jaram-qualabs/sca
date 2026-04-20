@@ -1,0 +1,61 @@
+Nivel: 🟢 Junior
+Puntaje: 18/23
+
+📚 Documentación
+✅ Explica cómo correr el código. Comandos claros: "python parteA.py" y "python parteB.py"
+❌ No documenta la versión de la tecnología. No especifica versión de Python (ej: 3.8+, 3.10)
+✅ Explica elecciones y decisiones. README menciona: "Se implementó una solución greedy del minimal hitting set problem. Como en este caso cada usuario requiere 2 proveedores y hay 8 proveedores en total, la cantidad de usuarios necesariamente tiene que ser mayor o igual que 4."
+
+👨‍💻 Usabilidad
+❌ Output INCONSISTENTE. Parte A guarda resultado en archivo JSON (json.dump), Parte B imprime por consola (print). Ambas deberían usar el mismo canal.
+✅ Parametriza los archivos. Ambas partes usan argparse con parámetro --path
+✅ No hardcodea nombres de archivos. Usa os.listdir() para encontrar .json dinámicamente
+✅ No hardcodea cantidad de archivos. No hay range(20) hardcodeado
+✅ No hardcodea providers. Los proveedores se leen dinámicamente desde data['provider']
+❌ No imprime salida como en la letra. No menciona el JSON malformado del enunciado
+
+🍝 Calidad del código
+✅ Nomenclatura consistente. Snake_case en todo: users_by_provider, json_file_names, module_provider_users, user_providers
+✅ Comentarios adecuados. Comentarios útiles: "Returns a dict with modules...", "Adds user's info...", explicación del greedy
+✅ Sin comentarios excesivos. No hay código comentado ni ruido
+✅ Sigue convenciones Python. Usa if __name__ == "__main__", argparse, estructura estándar
+✅ Divide en funciones. Bien organizado: Parte A (4 funciones), Parte B (7 funciones) con responsabilidades claras
+❌ Repite código de Parte A. La función get_args() es idéntica en ambos archivos (líneas 9-14 vs 8-13)
+❌ Código duplicado. process_user_info() prácticamente idéntica entre partes (parteA:28-37 vs parteB:27-33)
+✅ Sin indentación irregular. Todo correctamente indentado
+✅ Sin formato irregular. Código limpio y bien formateado
+✅ Tiene error handling. try/except en ambas partes con mensajes útiles para fallos de lectura
+
+🛠 Eficacia y Eficiencia
+✅ Parte A correcta. Lógica clara: agrupa usuarios por (módulo, proveedor). Genera estructura JSON correcta
+✅ Parte B cubre todos los módulos. Algoritmo greedy cubre los 8 módulos (4 auth + 4 authz)
+✅ Busca set reducido. Usa greedy que minimiza iterativamente
+❌ No asegura set mínimo. El algoritmo greedy NO garantiza el óptimo (puede devolver 5 usuarios en lugar de 4)
+
+⭐ Aspectos que destacan:
++ Código bien organizado con funciones claras y responsabilidades bien delimitadas
++ Excelente explicación del razonamiento: "cada usuario requiere 2 proveedores, hay 8 módulos, mínimo >= 4"
++ Manejo de errores presente en ambas partes
++ Parametrización correcta con argparse
++ Tiempo total muy eficiente: 3:38 para resolver el problema completo
+
+📝 Otras notas:
+- Tiempo total: 3:38 (1:12 Parte A + 2:26 Parte B)
+- La lógica es correcta pero hay duplicación de funciones entre archivos
+- Output inconsistente es el problema más crítico a resolver
+- Algoritmo greedy es pragmático pero no garantiza solución mínima de 4 usuarios
+
+🎁 Feedback:
+Tu solución muestra buena comprensión del problema y organización del código. Para mejorar hacia Senior:
+
+1. **Unifica el output**: Ambas partes deben escribir al mismo lugar (ambas a archivo o ambas a consola). Esto es crítico para integración y testing.
+
+2. **Elimina duplicación**: Crea un módulo `utils.py` con `get_args()` y `process_user_info()`. Importa desde ambas partes. Así evitas bugs por desincronización.
+
+3. **Documenta versión de Python**: Agrega al README "Requiere Python 3.8+" o similar. Pequeño detalle con gran impacto.
+
+4. **Verifica minimalidad**: Chequea si tu greedy devuelve 4 o 5+ usuarios. Si devuelve 5+, considera backtracking para garantizar óptimo.
+
+5. **Detalle de enunciado**: Nota el JSON malformado del ejemplo (sin comas) y coméntalo en el README - muestra atención.
+
+Globalmente: Buen trabajo en rapidez y lógica. El siguiente nivel requiere pulir consistencia y reutilización de código.

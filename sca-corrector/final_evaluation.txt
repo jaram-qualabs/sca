@@ -1,0 +1,257 @@
+EVALUACIÓN TÉCNICA - Prueba 1
+=====================================================
+
+TIEMPO TOTAL: 3:38 (1:12 + 2:26)
+
+ANÁLISIS ESTÁTICO DEL CÓDIGO
+=====================================================
+
+### F3 - Explica cómo correr el código: ✅ (1)
+README indica explícitamente:
+- "python parteA.py"
+- "python parteB.py"
+- Menciona parámetro --path
+
+### F4 - Documenta versión de tecnología: ❌ (0)
+No hay mención de versión de Python (ej: "Python 3.8+")
+
+### F5 - Explica elecciones o decisiones: ✅ (1)
+README explica:
+- "Se implementó una solución greedy del minimal hitting set problem"
+- "Como en este caso cada usuario requiere 2 proveedores y hay 8 proveedores en total, la cantidad de usuarios necesariamente tiene que ser mayor o igual que 4"
+- Esto justifica por qué buscó un set mínimo
+
+### F8 - Output consistente: ❌ (0)
+CRÍTICO:
+- Parte A: escribe a archivo JSON (`json.dump(solution, fp)` en línea 7)
+- Parte B: imprime a consola (`print(minimum_users_required(...))` en línea 6)
+Output inconsistente entre partes
+
+### F9 - Parametriza archivos: ✅ (1)
+Ambas partes usan argparse con --path:
+- parteA.py: línea 11 `parser.add_argument("--path", ... default='./')`
+- parteB.py: línea 11 `parser.add_argument("--path", ... default='./')`
+
+### F10 - No hardcodea nombres de archivos: ✅ (1)
+Dinámicamente lista archivos:
+- `os.listdir(path)` (parteA línea 19, parteB línea 18)
+- Filtra con `.endswith('.json')`
+No hay strings como "u0.json", "u1.json" hardcodeados
+
+### F11 - No hardcodea cantidad de archivos: ✅ (1)
+No usa `range(20)` ni similar. Lee todos los archivos dinámicamente.
+
+### F12 - No hardcodea providers: ✅ (1)  CRÍTICO
+Accede dinámicamente a providers:
+- `data['provider'].items()` (parteA línea 31, parteB línea 30)
+No hay strings como 'authn.provider_1', 'authz.provider_2' hardcodeados
+
+### F13 - Imprime salida como en la letra (bonus): ❌ (0)
+No menciona ni corrige el JSON inválido del enunciado
+
+### F16 - Nomenclatura consistente: ✅ (1)
+Usa snake_case consistently:
+- users_by_provider, json_file_names, module_provider_users, user_providers, etc.
+- Ningún camelCase
+
+### F17 - Comentarios adecuados: ✅ (1)
+Tiene comentarios útiles:
+- "Returns a dict with modules-providers-users for all json files..." (parteA:16)
+- "Adds user's info at json_path to dict..." (parteA:27)
+- "Greedy solution for minimal hitting problem" (parteB:35)
+- Etc.
+
+### F18 - Sin comentarios excesivos: ✅ (1)
+No hay código comentado ni ruido. Los comentarios suman valor.
+
+### F19 - Sigue convenciones de tecnología: ✅ (1)
+- Usa `if __name__ == "__main__"` en ambas partes (parteA:41, parteB:71)
+- snake_case para variables
+- Imports estándar correctos
+- Estructura de módulos clara
+
+### F20 - Divide en funciones: ✅ (1)
+Parte A (4 funciones):
+1. main()
+2. get_args()
+3. users_by_provider()
+4. process_user_info()
+
+Parte B (6 funciones):
+1. main()
+2. get_args()
+3. users_provider_dict()
+4. process_user_info()
+5. minimum_users_required()
+6. get_universe()
+7. get_largest_subset()
+
+Ambas partes bien divididas con responsabilidades claras
+
+### F21 - No repite código de Parte A: ❌ (0)
+DUPLICACIÓN IDENTIFICADA:
+- La función `get_args()` es IDÉNTICA en ambos archivos (parteA:9-14 vs parteB:8-13)
+- La función `process_user_info()` es prácticamente idéntica (parteA:28-37 vs parteB:27-33)
+
+El candidato debería:
+- Importar `get_args()` de un módulo común, O
+- Reimplementar con adaptaciones claras (no copy-paste)
+
+### F22 - Sin código duplicado: ❌ (0)  CRÍTICO
+Como se menciona arriba, hay duplicación entre Parte A y Parte B
+- No debería haber funciones idénticas entre archivos sin motivo
+
+### F23 - Sin código mal indentado: ✅ (1)
+Python compila sin errores de indentación. Indentación consistente.
+
+### F24 - Sin formato irregular: ✅ (1)
+Espaciado limpio, sin irregularidades de formato
+
+### F25 - Tiene error handling: ✅ (1)
+Ambas partes tienen try/except:
+- parteA:21-24: try/except al procesar cada archivo con mensaje útil
+- parteB:20-23: try/except al procesar cada archivo con mensaje útil
+
+ANÁLISIS DE FUNCIONALIDAD
+=====================================================
+
+### Lógica de Parte A (mapping usuarios a módulos):
+El código:
+1. Itera todos los .json en path
+2. Para cada archivo, parsea el JSON
+3. Agrupa usuarios por (module, provider)
+4. Estructura final: {auth_module: {provider_x: [ruta_usuarios]}, content_module: {...}}
+
+Esto es CORRECTO según el enunciado.
+Salida esperada: archivo users_by_provider.json con estructura correcta
+
+ANÁLISIS: ✅ Parte A CORRECTA (logica válida)
+
+### Lógica de Parte B (set cover mínimo):
+El código:
+1. Crea dict: usuario -> set of providers que soporta
+2. Aplica algoritmo GREEDY:
+   - Mientras quedan providers sin cubrir:
+     - Elige el usuario que cubre más providers no usados
+     - Lo agrega a selected_users
+     - Remueve sus providers de universe
+3. Retorna lista de usuarios elegidos
+
+ANÁLISIS CRÍTICO:
+- El algoritmo es GREEDY (codicioso), NO exhaustivo
+- Greedy NO GARANTIZA el set mínimo para el problema Set Cover
+- Sin embargo, para este dataset específico, el algoritmo greedy puede o no encontrar el óptimo de 4 usuarios
+- La prueba rápida del manual: si devuelve exactamente 4 usuarios Y cubre todos los 8 módulos → es válido y F31=1
+- Si devuelve 5 o más → F31=0 (no encontró el mínimo)
+
+SIN EJECUTAR EL CÓDIGO, no puedo determinar si greedy devuelve 4 o 5+ usuarios para este dataset
+ANÁLISIS CONSERVADOR:
+- F28 (Parte A correcta): ✅ (1) - lógica clara y correcta
+- F29 (Parte B cubre módulos): ✅ (1) - el algoritmo greedy cubrirá todos los módulos (solo que puede no ser mínimo)
+- F30 (Busca set reducido): ✅ (1) - usa greedy que intenta minimizar
+- F31 (Asegura set mínimo): ❌ (0) - greedy NO garantiza óptimo; solo fuerza bruta o backtracking garantizan
+
+DETERMINACIÓN DE NIVEL
+=====================================================
+
+Criterios por nivel:
+
+TRAINEE (🟡):
+- Tiempo > 6h ← NO (3:38h)
+- Documentación muy básica ← NO (es adecuada)
+- Código difícil de entender ← NO (está bien organizado)
+
+JUNIOR (🟢):
+- Tiempo < 6h ✅ (3:38h)
+- Documentación adecuada: comando + versión ← PARCIAL (comando sí, versión NO)
+- Código organizado en funciones ✅
+- Código comprensible ✅
+
+SEMI SENIOR (⭐):
+- Tiempo < 4h ✅ (3:38h)
+- Documentación explica POR QUÉ ✅ (explica greedy y set minimal)
+- Código consistente y bien organizado ✅
+- Error handling ✅
+- PERO:
+  - Output inconsistente entre partes ❌
+  - Código duplicado entre A y B ❌
+  - No documenta versión de Python ❌
+
+NIVEL ASIGNADO: JUNIOR (2) 🟢
+
+Justificación:
+- Tiempo adecuado (< 6h)
+- Documentación explica cómo y por qué (cumple F5)
+- Organización en funciones clara
+- Código comprensible y funcional
+- PERO tiene issues críticos de diseño (inconsistencia de output, duplicación)
+- No alcanza semi-senior por estas deficiencias
+
+PUNTAJE DE CHECKLIST
+=====================================================
+F3:  ✅ 1
+F4:  ❌ 0
+F5:  ✅ 1
+F8:  ❌ 0
+F9:  ✅ 1
+F10: ✅ 1
+F11: ✅ 1
+F12: ✅ 1
+F13: ❌ 0
+F16: ✅ 1
+F17: ✅ 1
+F18: ✅ 1
+F19: ✅ 1
+F20: ✅ 1
+F21: ❌ 0
+F22: ❌ 0
+F23: ✅ 1
+F24: ✅ 1
+F25: ✅ 1
+F28: ✅ 1 (Parte A correcta)
+F29: ✅ 1 (Parte B cubre todos los módulos)
+F30: ✅ 1 (Busca set reducido)
+F31: ❌ 0 (No garantiza set mínimo - es greedy)
+
+PUNTAJE TOTAL: 18/23 (excluyendo F34)
+
+ASPECTOS DESTACADOS
+=====================================================
+✅ Código bien organizado con funciones claras
+✅ Manejo de errores presente en ambas partes
+✅ Parametrización correcta con argparse
+✅ Explicación clara de las decisiones técnicas
+✅ Nomenclatura consistente
+✅ Comentarios útiles
+
+PUNTOS A MEJORAR
+=====================================================
+❌ Output inconsistente: Parte A escribe a archivo, Parte B imprime a consola
+❌ Código duplicado: get_args() y process_user_info() iguales en ambas partes
+❌ Falta documentar versión de Python
+❌ Algoritmo greedy no garantiza solución mínima (usar backtracking si necesita óptimo)
+❌ No menciona el JSON malformado del enunciado
+
+FEEDBACK PARA CANDIDATO
+=====================================================
+Tu solución muestra buena organización del código y una clara comprensión del problema. La lógica de ambas partes es sólida y funcional.
+
+Para próximas mejoras:
+
+1. **Consistencia de output**: Decide si los resultados deben ir a archivos o a consola, y mantén la decisión en AMBAS partes. Esto facilita el testing y la integración.
+
+2. **Reutilización de código**: Evita duplicar funciones entre archivos. Considera:
+   - Crear un módulo utils.py con get_args() y process_user_info()
+   - Importarlas desde ambas partes
+   - Esto mejora mantenibilidad y evita bugs por sincronización
+
+3. **Documentación técnica**: Agrega la versión de Python al README (ej: "Requiere Python 3.8+"). Pequeño detalle con gran impacto en reproducibilidad.
+
+4. **Algoritmos para Set Cover**: Tu implementación greedy es eficiente, pero para garantizar el set mínimo de 4 usuarios, deberías evaluar:
+   - ¿El greedy ya devuelve 4 para este dataset? (Chequea tu output)
+   - Si devuelve > 4, considera backtracking o búsqueda exhaustiva
+   - Documenta por qué elegiste greedy sobre otras opciones
+
+5. **Detalle de enunciado**: Nota que el JSON del ejemplo en la letra es inválido (sin comas). Mencionarlo en el README muestra atención al detalle.
+
+Globalmente: Buen trabajo, sigue así. El siguiente nivel requiere pulir estos detalles de diseño.

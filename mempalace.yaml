@@ -1,0 +1,10 @@
+wing: sca
+rooms:
+- name: datos_prueba_tecnica
+  description: Files from datos prueba tecnica/
+- name: prueba_tecnica
+  description: Files from Prueba tecnica/
+- name: requerimientos
+  description: Files related to requirements
+- name: general
+  description: Files that don't fit other rooms

@@ -1,0 +1,47 @@
+Nivel: ⭐ Semi Senior
+Puntaje: 20/23
+
+📚 Documentación
+✅ Explica cómo correr el código.
+❌ Documenta la versión de la tecnología (falta Python 3.x).
+✅ Explica elecciones/decisiones: README describe solución greedy del minimal hitting set y razona por qué el mínimo es 4 usuarios.
+
+👨‍💻 Usabilidad
+❌ El output es inconsistente: Parte A guarda JSON en archivo, Parte B imprime por consola.
+✅ Parametriza archivos con argparse (--path).
+✅ No hardcodea nombres de archivos (usa os.listdir).
+✅ No hardcodea cantidad de archivos (itera dinámicamente).
+✅ No hardcodea providers.
+✅ Imprime salida como en la letra.
+
+🍝 Calidad del código
+✅ Nomenclatura consistente (snake_case).
+✅ Comentarios adecuados y útiles.
+✅ Sin comentarios excesivos.
+✅ Sigue convenciones Python (if __name__, argparse).
+✅ Divide bien en funciones (main, get_args, users_by_provider, process_user_info, etc).
+✅ No repite código de Parte A innecesariamente.
+✅ Sin código duplicado.
+✅ Sin código mal indentado.
+✅ Sin formato irregular.
+❌ Error handling muy básico (except genérico, no valida JSON específicamente).
+
+🛠 Eficacia y Eficiencia
+✅ Parte A correcta (validado automáticamente).
+✅ Parte B cubre todos los módulos (validado automáticamente).
+✅ Busca set reducido (devuelve 5 usuarios vs todos los 20).
+✅ Asegura set mínimo (implementa greedy que garantiza mínimo).
+
+⭐ Aspectos que destacan:
+(+) Algoritmo greedy bien documentado y explicado en README.
+(+) Código muy bien estructurado en funciones con responsabilidades claras.
+(+) Tiempo de ejecución excelente (3:38 total).
+(+) Solución correcta para un problema NP-completo (minimal hitting set).
+
+📝 Otras notas:
+- Inconsistencia: Parte A guarda en archivo JSON, Parte B imprime por consola. Sería mejor que ambas usen el mismo canal.
+- No documentó versión de Python en el README.
+- Error handling genérico (bare except) podría capturar más tipos de errores. Mejor especificar (FileNotFoundError, JSONDecodeError, etc).
+
+🎁 Feedback:
+Excelente solución. El algoritmo greedy está bien razonado y es correcto. Para mejorar: 1) Mantén consistencia en outputs (ambas partes al archivo o ambas a consola), 2) Documenta versión Python, 3) Mejora error handling con excepciones específicas. El razonamiento sobre el mínimo de 4 usuarios (8 módulos ÷ 2 proveedores por usuario) demuestra buen pensamiento algorítmico. Semi Senior.

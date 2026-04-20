@@ -1,0 +1,1 @@
+{"content_module": {"authz.provider_1": ["./test/u1.json", "./test/u3.json"], "authz.provider_2": ["./test/u2.json", "./test/u4.json"], "authz.provider_3": ["./test/u5.json"]}, "auth_module": {"authn.provider_1": ["./test/u1.json", "./test/u2.json"], "authn.provider_2": ["./test/u5.json", "./test/u4.json", "./test/u3.json"]}}

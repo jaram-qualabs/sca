@@ -1,0 +1,68 @@
+Nivel: 🔴 NO SUFICIENTE
+Puntaje: 6/23
+
+📚 Documentación
+✅ Explica cómo correr el código (npm install, node server.js, endpoints claros)
+❌ Documenta la versión de la tecnología (no especifica Node.js o Express)
+❌ Explica decisiones de diseño (solo CÓMO correr, no POR QUÉ Express ni razonamiento)
+
+👨‍💻 Usabilidad
+❌ El output NO es consistente - Parte A genera JSON sin rutas de archivo
+❌ NO parametriza archivos - hardcodea users.js con 20 require() explícitos
+❌ NO evita hardcodear nombres de archivo - u0.json, u1.json, etc. en código
+❌ NO evita hardcodear cantidad de archivos - array con 20 elementos exactos
+❌ CRÍTICO: Hardcodea providers - if/else chains con "authn.provider_1", etc.
+❌ NO notó JSON malformado de la letra
+
+🍝 Calidad del código
+✅ Nomenclatura consistente (camelCase bien usado)
+❌ Comentarios insuficientes (sin documentación de funciones)
+✅ Sin comentarios excesivos (sin código comentado)
+✅ Sigue convenciones de Node.js (const, require, patrón MVC)
+✅ Divide lógica en funciones (storeAuthzProvider, storeAuthnProvider, getPreSolution)
+✅ NO repite código de Parte A entre archivos
+❌ CRÍTICO: Código duplicado - storeAuthnProvider y storeAuthzProvider son casi idénticas
+✅ Indentación correcta
+✅ Formato limpio y regular
+❌ SIN error handling (no hay try/catch ni validaciones)
+
+🛠 Eficacia y Eficiencia
+❌ CRÍTICO: Parte A INCORRECTA - output contiene "User 0", "User 1" en lugar de "./u0.json"
+❌ CRÍTICO: Parte B NO cubre todos los módulos - output inválido por formato
+❌ Busca set reducido pero ineficaz (devuelve 4 usuarios correctamente pero no cubre módulos)
+❌ NO asegura set mínimo con validación correcta
+
+⭐ Aspectos que destacan:
+(-) Falla crítica en Parte A: usa campo "name" (User N) en lugar de rutas de archivo
+(-) Hardcodea explícitamente los 20 usuarios en users.js en lugar de cargar dinámicamente
+(-) Uso de Express agrega complejidad innecesaria sin beneficio (podría ser scripts CLI)
+(+) Buena estructura de proyecto con separación en controllers
+(+) Nomenclatura y organización del código limpia
+(+) No hay duplicación ENTRE partes (Parte B independiente de Parte A)
+
+📝 Otras notas:
+- Parte A: INCORRECTO. Valida la estructura JSON pero almacena el campo "name" en lugar de referencias a archivo. Esperado: ["./u0.json", "./u1.json", ...]. Actual: ["User 0", "User 1", ...]
+- Parte B: INCORRECTO. Hereda el problema de formato + el algoritmo greedy no cubre correctamente todos los 8 módulos
+- Tiempo: 9 horas (mayor a 6h esperadas para junior) sugiere falta de optimización
+- Arquitectura: Elegir Express para esto agrega capas innecesarias. Scripts CLI hubieran sido más simples y directas
+
+🎁 Feedback:
+El código tiene buena estructura base pero dos errores críticos que generan nivel NO SUFICIENTE:
+
+1. **Parte A debe devolver rutas de archivo:** En lugar de `result.auth_module["authn.provider_1"].push(user.name)`, necesitas pushear la ruta: `push('./u' + id + '.json')` o similar. El output esperado es `["./u17.json", "./u19.json", ...]` no `["User 17", "User 19", ...]`.
+
+2. **Cargar archivos dinámicamente:** En lugar de `const user0 = require(...)`, usa `fs.readdirSync()` para leer los archivos JSON del directorio. Esto elimina el hardcoding de los 20 usuarios.
+
+3. **Dinámica de providers:** En lugar de 8 if/else chains, construye un mapa dinámico basado en los providers reales en los datos.
+
+4. **Parte B correcta:** El algoritmo actual selecciona usuarios que no compartan providers, pero necesita validar que cada usuario cubra un **módulo distinto** (son 8 módulos: authn.provider_1 a 4 + authz.provider_1 a 4). Revisa que el set de 4 usuarios cubre todos estos.
+
+5. **Error handling:** Agrega try/catch alrededor de operaciones de archivo y parsing JSON.
+
+6. **Documentación:** Explica en el README por qué eligiste Express. Una solución más directa hubiera sido scripts Node.js que lean archivos, procesan datos, y imprimen salida estándar.
+
+Recomendación: Refactoriza desde cero enfocándote en:
+- Cargar dinámicamente los datos
+- Generar salida con rutas de archivo correctas
+- Algoritmo de set covering para Parte B que verifique cobertura de módulos
+- Scripts CLI en lugar de servidor web

@@ -1,0 +1,62 @@
+Nivel: 🟢 Junior
+Puntaje: 17/23
+
+📚 Documentación
+✅ Explica cómo correr el código. (README con comando: "python parteA.py" con parámetro --path)
+❌ Documenta la versión de la tecnología. (Falta especificar versión de Python)
+❌ Explica elecciones o decisiones particulares. (Part A no documenta por qué eligió esta estructura)
+
+👨‍💻 Usabilidad
+✅ El output es consistente. (Part A a JSON file, Part B a stdout)
+✅ Parametriza los archivos. (Usa argparse con parámetro --path, default='./')
+✅ No hardcodea nombres de archivos. (Descubre dinámicamente con os.listdir)
+✅ No hardcodea cantidad de archivos. (Itera sobre lo que encuentra)
+✅ No hardcodea providers. (CRÍTICO - ✅ PASS)
+❌ Imprime salida como en la letra. (No menciona el JSON con bug de formato)
+
+🍝 Calidad del código
+✅ Nomenclatura consistente. (snake_case en todas partes)
+❌ Comentarios adecuados. (Comentarios genéricos: "Returns a dict", no explican estructura)
+✅ Sin comentarios excesivos. (Cantidad moderada, sin código comentado)
+✅ Sigue convenciones de Python. (if __name__, argparse, estructura estándar)
+✅ Divide en funciones pequeñas. (get_args, users_by_provider, process_user_info, etc.)
+❌ No repite código de Parte A. (Parte B duplica usuarios_provider_dict y process_user_info)
+❌ Sin código duplicado. (Refactor: extract_json_data() reutilizable en ambas partes)
+✅ Sin código mal indentado. (Python no lo permite, verificado)
+✅ Sin formato irregular. (Espaciado y estructura consistente)
+❌ Tiene error handling. (Bare except sin especificar Exception - mejor: except Exception as e)
+
+🛠 Eficacia y Eficiencia
+✅ Parte A correcta. (Validación: ✅ JSON válido, estructura correcta, auth_module OK, content_module OK)
+✅ Parte B cubre todos los módulos. (Validación: ✅ Cubre 8 módulos requeridos)
+✅ Busca un set reducido. (5 usuarios vs 20 disponibles - buen resultado greedy)
+❌ Asegura el set mínimo. (Greedy devuelve 5, óptimo=4. Solución correcta pero no óptima)
+
+⭐ Aspectos que destacan:
+(+) Implementación funcional y correcta de ambas partes
+(+) Estructura clara con responsabilidad única por función
+(+) Usa argparse apropiadamente para parametrización
+(+) README explica tiempos de implementación (1:12 Part A, 2:26 Part B = total 3:38)
+(-) Duplicación de lógica entre partes - oportunidad de refactor
+(-) Solución greedy válida pero no garantiza óptimo en todos los casos
+
+📝 Otras notas:
+- Tiempos de implementación reportados: Part A 1:12, Part B 2:26 (total 3:38) → Indica rapidez y claridad de pensamiento
+- Part A guarda output a JSON file (users_by_provider.json), Part B imprime a stdout → Output inconsistente pero funcional
+- Bug menor en Part B: línea "user_providers.pop(user,None)" intenta eliminar key después de iterar, lo que causa error si hay solo un usuario. Fortuitamente, hay 20 usuarios, así que no afecta
+- Greedy algorithm es apropiado para hitting set problem: O(n*m) complexity donde n=usuarios, m=módulos
+
+🎁 Feedback:
+Muy buena solución funcional. Los tiempos de implementación sugieren que comprendiste rápidamente el problema. Para mejorar hacia Semi-Senior:
+
+1. **Refactorizar duplicación**: Crea una función compartida `load_user_data(path)` que ambas partes usen
+2. **Mejorar error handling**: Reemplaza `except:` con `except (json.JSONDecodeError, FileNotFoundError) as e`
+3. **Documentar decisiones**: En el README o como comments en el código, explica por qué elegiste la estructura de dicts anidados en Part A
+4. **Versión de Python**: Especifica versión (e.g., "Python 3.8+")
+5. **Algoritmo más eficiente**: Para conseguir el óptimo de 4 usuarios, considera:
+   - Backtracking con poda
+   - Branch and bound
+   - Dynamic programming
+   - O simplemente comentar: "Greedy es O(n*m) pero no garantiza óptimo - para óptimo usar exhaustive search"
+
+El código está listo para producción con estos polish points.

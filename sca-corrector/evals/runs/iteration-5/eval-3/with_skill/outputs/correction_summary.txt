@@ -1,0 +1,136 @@
+RESUMEN DE CORRECCIÓN — PRUEBA TÉCNICA 3
+========================================
+
+CANDIDATO: Desconocido
+TECNOLOGÍA: Java 1.8.0_261
+FECHA DE EVALUACIÓN: 2026-04-14
+NIVEL FINAL: NO SUFICIENTE (0/3)
+
+RESULTADOS EJECUTIVOS
+=====================
+
+ERRORES CRÍTICOS ENCONTRADOS: 2
+1. Parte A produce output con claves incorrectas
+2. Parte B algoritmo insuficiente, no cubre todos los módulos
+
+PUNTAJE FINAL: 13/23 puntos (56.5%) + 1 bonus = 14/24
+
+DESGLOSE DE EVALUACIÓN
+======================
+
+DOCUMENTACIÓN: 1/3 puntos
+- [1] Explica cómo correr: README.txt menciona "click derecho y run" pero es muy básico
+- [0] Versión de tecnología: No documentada en README
+- [0] Explica decisiones: Solo procedimiento, sin justificación de diseño
+
+USABILIDAD: 3/6 puntos
+- [0] Parametriza archivos: Hardcodea "./src/qualabs/input"
+- [1] No hardcodea nombres específicos: Correcto
+- [1] No hardcodea cantidad de archivos: Correcto
+- [1] No hardcodea providers: Correcto, los lee del JSON
+- [0] Output según especificación: Claves incorrectas en Parte A
+- [1] Output consistente: Ambas partes por stdout
+
+CALIDAD DE CÓDIGO: 8/10 puntos
+- [1] Nomenclatura: camelCase consistente
+- [1] Comentarios adecuados: Explican la lógica
+- [1] Sin comentarios excesivos: Ninguno comentado
+- [0] Convenciones Java: main.java debería ser Main.java
+- [1] División en funciones: 4 clases bien separadas
+- [1] No repite código A: Parte B independiente
+- [1] Sin duplicación: Código limpio
+- [1] Indentación: Consistente
+- [1] Formato: Regular
+- [1] Error handling: try-catch implementado
+
+EFICACIA Y EFICIENCIA: 0/4 puntos ❗CRÍTICO
+- [0] Parte A correcta: FALLO - Claves mal capitalizadas
+  * Esperado: {"auth_module": {...}, "content_module": {...}}
+  * Obtenido: {"Content_module": {...}, "Auth_module": {...}}
+- [0] Parte B cubre módulos: FALLO - Algoritmo insuficiente
+  * No cubre los 8 módulos (authn/authz provider 1-4)
+  * Lógica: elimina solo si AMBOS módulos tienen >1 cobertura
+  * Resultado: probable falso negativo en cobertura
+- [0] Set reducido: No aplica (Parte B falla)
+- [0] Set mínimo: No aplica (Parte B falla)
+
+ANÁLISIS DETALLADO
+==================
+
+CÓDIGO PARTE A (ParteA.java)
+- Lee usuarios correctamente del JSON
+- Agrupa por content_module y auth_module de manera correcta
+- ERROR CRÍTICO: Las claves del output HashMap están mal:
+  * Usa "Content_module" y "Auth_module" (capitalizadas)
+  * Especificación requiere "content_module" y "auth_module" (minúsculas)
+  * Esto hace que el output sea incompatible con el validador
+
+CÓDIGO PARTE B (ParteB.java)
+- Intenta implementar un algoritmo greedy
+- Itera dos veces sobre usuarios:
+  1ª pasada: cuenta módulos por usuario
+  2ª pasada: elimina usuarios si AMBOS módulos tienen cobertura >1
+- ERROR CRÍTICO: Lógica incompleta
+  * La condición && requiere que AMBOS módulos tengan >1
+  * Esto es demasiado restrictivo y no garantiza cobertura
+  * Ejemplo: si un usuario cubre authn.provider_1 (único) y authz.provider_1 (duplicado), no se elimina
+  * Resultado: puede devolver más usuarios de lo necesario O fallar en cobertura total
+  * Algoritmo correcto requeriría: Set Cover, Greedy modificado, o búsqueda exhaustiva
+
+CÓDIGO UTILIDADES
+- main.java: Maneja directorios recursivamente, parsea JSON, maneja excepciones
+- Usuario.java: Clase simple con getters, estructura clara
+- Librerías: GSON (output JSON), JSON.simple (parseo input) - selección adecuada
+
+HARDCODING
+- "./src/qualabs/input" es hardcodeado (NO parametrizable)
+- Candidato metió los 20 JSON dentro del ZIP para testing local
+- Esto viola la expectativa de parametrización aunque técnicamente funciona para su caso
+
+DOCUMENTACIÓN
+- README.txt es minimalista (4 líneas)
+- Muy básico: solo procedimiento IDE, sin contexto técnico
+- No explica:
+  * Versión Java usada (menciona 1.8.0_261 pero en IDE instruction)
+  * Decisiones de algoritmo o por qué greedy
+  * Limitaciones conocidas
+  * Cómo adaptarlo a nuevos datasets
+
+MANEJO DE ERRORES
+- try-catch presente para FileNotFoundException, IOException, ParseException
+- Usa e.printStackTrace() (funcional pero no ideal)
+- Suficiente para el nivel requerido
+
+CONVENCIONES
+- Mayoría bien (camelCase, getters, estructura)
+- FALTA: main.java debería ser Main.java (estándar Java)
+
+RECOMENDACIONES
+===============
+
+PARA ALCANZAR NIVEL TRAINEE:
+1. Corregir claves de output en Parte A: "content_module" y "auth_module" (minúsculas)
+2. Mejorar algoritmo Parte B: usar Set Cover o backtracking
+3. Ampliar README con versión Java y explicación de decisiones
+
+PARA ALCANZAR NIVEL JUNIOR:
+4. Parametrizar ruta de entrada (argumento de línea de comandos)
+5. Renombrar main.java a Main.java
+6. Agregar validación que confirme cobertura completa antes de retornar
+
+PARA ALCANZAR NIVEL SEMI-SENIOR:
+7. Documentar en README por qué se eligió cierto algoritmo
+8. Agregar pruebas unitarias (Unit Tests con JUnit)
+9. Mencionar complejidad temporal/espacial del algoritmo
+
+CONTEXTO TÉCNICO
+================
+
+Tecnología: Java 1.8.0_261
+Archivos: 5 (ParteA.java, ParteB.java, Usuario.java, main.java, README.txt)
+Líneas de código: ~80 (lean, pero con errores)
+Complejidad: Media (HashMaps, recursión, parseo JSON)
+Librerías externas: GSON, JSON.simple
+
+El código demuestra competencia en Java pero falla en los puntos críticos del problema. El candidato necesita revisar la especificación de salida y mejorar el algoritmo de búsqueda del conjunto mínimo.
+

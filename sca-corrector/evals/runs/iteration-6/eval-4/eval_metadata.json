@@ -1,0 +1,17 @@
+{
+  "eval_id": 4,
+  "eval_name": "prueba4-junior",
+  "prompt": "Corregí esta prueba técnica. El ZIP está en /sessions/gallant-eloquent-clarke/mnt/SCA/sca-corrector/references/backend/prueba 4.zip",
+  "assertions": [
+    {"text": "Asigna nivel Junior (fila 34 = 2)"},
+    {"text": "Parte A correcta (fila 28 = 1)"},
+    {"text": "Parte B cubre módulos (fila 29 = 1)"},
+    {"text": "No hardcodea providers (fila 12 = 1)"},
+    {"text": "Hardcodea nombres de archivos (fila 10 = 0)"},
+    {"text": "Sin comentarios adecuados (fila 17 = 0)"},
+    {"text": "Sin error handling (fila 25 = 0)"},
+    {"text": "Busca set reducido (fila 30 = 1)"},
+    {"text": "Genera archivo Excel con checklist completado"},
+    {"text": "Genera texto para Asana con ✅/❌"}
+  ]
+}

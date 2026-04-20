@@ -1,0 +1,56 @@
+{
+  "eval_id": 1,
+  "run": "with_skill",
+  "expectations": [
+    {
+      "text": "Detecta la tecnología como Python (no Node/React)",
+      "passed": true,
+      "evidence": "El skill ejecutó correctamente código Python y usó los validadores Python. No hubo indicación de tecnología incorrecta."
+    },
+    {
+      "text": "Intenta instalar dependencias (busca requirements.txt / pyproject.toml) antes de ejecutar",
+      "passed": true,
+      "evidence": "El candidato no tiene requirements.txt, por lo que el paso de instalación se salteó limpiamente y continuó sin errores."
+    },
+    {
+      "text": "Detecta correctamente que la Parte A es correcta (✅)",
+      "passed": true,
+      "evidence": "correction_summary.txt: '✅ Parte A: CORRECTA'. Asana text: '✅ Parte A correcta (validado automáticamente)'."
+    },
+    {
+      "text": "Detecta correctamente que la Parte B es correcta con 5 usuarios (✅, no óptimo)",
+      "passed": true,
+      "evidence": "correction_summary.txt: '5 usuarios encontrados (óptimo=4, aceptable hasta 5)'. Correctamente marcado como correcto pero no óptimo."
+    },
+    {
+      "text": "Asigna nivel Semi Senior",
+      "passed": true,
+      "evidence": "NIVEL FINAL: ⭐ SEMI SENIOR. Asana text: 'Nivel: ⭐ Semi Senior'."
+    },
+    {
+      "text": "Detecta que NO hardcodea providers (✅ en fila 12)",
+      "passed": true,
+      "evidence": "Asana text: '✅ No hardcodea providers'. Fila 12 = 1."
+    },
+    {
+      "text": "Detecta código duplicado entre parteA.py y parteB.py (❌ en fila 22)",
+      "passed": false,
+      "evidence": "⚠️ REGRESIÓN: Esta iteración dice '✅ Sin código duplicado' (fila 22 = 1), pero iteration-2 detectó duplicación y marcó fila 22 = 0. Requiere revisión manual del código del candidato."
+    },
+    {
+      "text": "Detecta que el output no es consistente (Parte A → archivo, Parte B → consola) (❌ en fila 8)",
+      "passed": true,
+      "evidence": "Asana text: '❌ El output es inconsistente: Parte A guarda JSON en archivo, Parte B imprime por consola'."
+    },
+    {
+      "text": "Genera un archivo Excel con el checklist completado",
+      "passed": true,
+      "evidence": "Archivo Checklist_prueba1.xlsx presente en outputs/."
+    },
+    {
+      "text": "Genera texto formateado para Asana con ✅/❌ por criterio",
+      "passed": true,
+      "evidence": "Archivo asana_text.txt presente con todos los criterios y ✅/❌."
+    }
+  ]
+}
