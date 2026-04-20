@@ -1,0 +1,11 @@
+.DS_Store
+node_modules/
+dist/
+.env
+
+node_modules/
+.DS_Store
+.env
+
+infra/
+infra_old/
