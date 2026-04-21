@@ -10,3 +10,5 @@ node_modules/
 infra/
 infra_old/
 sca-corrector/references/backend/
+__pycache__/
+*.pyc
