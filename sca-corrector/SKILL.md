@@ -16,9 +16,26 @@ Sos el Sistema de Corrección Automatizada (SCA) de Qualabs. Tu trabajo es anali
 1. Un **checklist completo** con 0/1 por criterio
 2. El **nivel sugerido** (no_suficiente / trainee / junior / semi_senior)
 3. El **texto listo para Asana** con ✅/❌
-4. Un **archivo Excel** con el checklist completado
 
 Lee `references/manual.md` para entender los criterios de corrección y los niveles en detalle. Lee `references/expected_output.md` para conocer los resultados esperados de Parte A y Parte B.
+
+---
+
+## Convenciones de paths
+
+Este skill se usa desde dos entornos (Cowork local y la routine desatendida). Para que los snippets sean portables, usamos la variable **`$SCA_ROOT`** que apunta a la raíz del repo SCA.
+
+Antes de ejecutar cualquier bash o Python, resolvé `$SCA_ROOT` según el entorno:
+
+```bash
+# Cowork en Mac (default de este skill)
+export SCA_ROOT="/Users/javieraramberri/Projects/SCA"
+
+# Routine / Claude Code con el repo montado
+# export SCA_ROOT="/workspace"
+```
+
+En los snippets de Python usamos `os.environ['SCA_ROOT']` o lo pasamos explícitamente. En los snippets de bash usamos `"$SCA_ROOT"`.
 
 ---
 
@@ -108,8 +125,8 @@ node parteA.js  # o el entry point que indique el README / package.json scripts
 Capturá el output (archivo JSON o stdout). Luego validalo con:
 
 ```python
-import sys
-sys.path.insert(0, '/Users/javieraramberri/Projects/SCA')
+import os, sys
+sys.path.insert(0, os.environ['SCA_ROOT'])
 from sca.validators.part_a import validate
 result = validate(<output_como_string>)
 print(result.summary())
@@ -155,8 +172,9 @@ node parteB.js  # o el entry point que indique el README
 Capturá la lista de usuarios que devuelve. Luego validala:
 
 ```python
+import os
 from sca.validators.part_b import validate_from_string
-DATA_DIR = '/Users/javieraramberri/Projects/SCA/datos prueba tecnica'
+DATA_DIR = os.path.join(os.environ['SCA_ROOT'], 'datos prueba tecnica')
 result = validate_from_string(<output_parte_b>, DATA_DIR)
 print(result.summary())
 ```
@@ -164,8 +182,8 @@ print(result.summary())
 **Si el validator falla o devuelve error de formato**, antes de marcar Parte B como incorrecta, verificá manualmente si la lista de usuarios cubre los 8 módulos. Podés usar el `verificador.py` original:
 
 ```bash
-cd '/Users/javieraramberri/Projects/SCA/datos prueba tecnica'
-python3 /Users/javieraramberri/Projects/SCA/Correccion/verificador.py
+cd "$SCA_ROOT/datos prueba tecnica"
+python3 "$SCA_ROOT/Correccion/verificador.py"
 # Ingresar la lista de usuarios cuando pida input
 ```
 
@@ -269,92 +287,35 @@ Si no:
 
 El tiempo lo encontrás en el README. Si no está reportado, no lo penalices — anotalo como observación.
 
----
+### Justificación del nivel
 
-## Paso 8 — Completar el checklist Excel
+Además del valor del nivel (0-3), **producí siempre una justificación concisa (2-3 oraciones, ~50 palabras)** que explique por qué el candidato cae en ese nivel y no en el contiguo (arriba o abajo). Esto le permite al humano validar o corregir la decisión sin tener que recorrer los 23 criterios.
 
-Usá el template existente:
+Formato:
+- Empezá por lo que lo clasifica ("Cumple X, Y, Z").
+- Terminá por lo que lo diferencia del nivel contiguo ("No llega a Semi Senior por W" / "No baja a Junior porque V").
+- Si el tiempo estaba reportado y pesó en la decisión, mencionalo.
 
-```python
-from openpyxl import load_workbook
-import shutil
+Ejemplos:
 
-src = '/Users/javieraramberri/Projects/SCA/Correccion/Checklist corrección.xlsx'
-dst = '/Users/javieraramberri/Projects/SCA/Correccion/Checklist_<nombre>.xlsx'
-shutil.copy(src, dst)
+> Semi Senior: cumple todos los críticos, explica el algoritmo greedy y la cota mínima, tiene error handling y encuentra el set mínimo (F31). Se diferencia de Junior por la profundidad del README y por el extra de F31. Tiempo reportado: 3h30.
 
-wb = load_workbook(dst)
-template = wb['Template Backend']  # o 'Template Frontend' si corresponde
-ws = wb.copy_worksheet(template)
-ws.title = '<nombre candidato>'
-wb.move_sheet(ws.title, offset=-len(wb.sheetnames)+1)
+> Junior: cumple todos los críticos y organiza en funciones, pero no documenta versión de runtime (F4) ni alcanza el set mínimo (F31). No llega a Semi Senior por esas dos ausencias; no baja a Trainee porque el código es claro y documenta el "cómo correr".
 
-# Scores: 1=cumple, 0=no cumple
-scores = {
-    3: <1|0>,   # Explica cómo correr el código
-    4: <1|0>,   # Documenta versión de tecnología
-    5: <1|0>,   # Explica elecciones/decisiones
-    8: <1|0>,   # Output consistente
-    9: <1|0>,   # Parametriza archivos
-    10: <1|0>,  # No hardcodea nombres de archivos
-    11: <1|0>,  # No hardcodea cantidad de archivos
-    12: <1|0>,  # No hardcodea providers ❗CRÍTICO
-    13: <1|0>,  # Imprime salida como en la letra
-    16: <1|0>,  # Nomenclatura consistente
-    17: <1|0>,  # Comentarios adecuados
-    18: <1|0>,  # Sin comentarios excesivos
-    19: <1|0>,  # Sigue convenciones de tecnología
-    20: <1|0>,  # Divide en funciones
-    21: <1|0>,  # No repite código de Parte A
-    22: <1|0>,  # Sin código duplicado ❗
-    23: <1|0>,  # Sin código mal indentado
-    24: <1|0>,  # Sin formato irregular
-    25: <1|0>,  # Tiene error handling
-    28: <1|0>,  # Parte A correcta ❗CRÍTICO
-    29: <1|0>,  # Parte B cubre módulos ❗CRÍTICO
-    30: <1|0>,  # Busca set reducido
-    31: <1|0>,  # Asegura set mínimo
-    34: <0|1|2|3>,  # Nivel: 0=no_suf, 1=trainee, 2=junior, 3=semi_sr
-}
+> Trainee: cumple los críticos pero el README solo indica el comando de ejecución, sin explicar decisiones, y el código mezcla responsabilidades. No baja a no_suficiente porque los tres críticos (F12/F28/F29) están en ✅.
 
-for row, val in scores.items():
-    ws[f'A{row}'] = val
-
-# Textos libres
-ws['A37'] = "<aspectos destacados línea 1>"
-ws['A38'] = "<aspectos destacados línea 2>"
-# ... (usá A37-A40 para aspectos)
-ws['A42'] = "<notas de corrección>"
-# ... (usá A42-A45 para notas)
-ws['A47'] = "<feedback para el candidato>"
-
-# Reemplazar SWITCH por fórmula compatible
-for sheet in wb.sheetnames:
-    s = wb[sheet]
-    for cell in s['B']:
-        if cell.value and isinstance(cell.value, str) and 'switch' in cell.value.lower():
-            if 'A34' in cell.value:
-                cell.value = '=IF(A34=0,"No suficiente",IF(A34=1,"Trainee",IF(A34=2,"Junior","SemiSr")))'
-            elif 'A51' in cell.value:
-                cell.value = '=IF(A51=0,"No suficiente",IF(A51=1,"Trainee",IF(A51=2,"Junior","SemiSr")))'
-
-wb.save(dst)
-```
-
-Luego recalculá con:
-```bash
-python3 /var/folders/n1/7vkblp1d4lj_hc9_t82w28680000gn/T/claude-hostloop-plugins/7d6eec81aa93e9de/skills/xlsx/scripts/recalc.py <dst>
-```
+Guardá esta justificación — el Paso 8 la incluye en el texto para Asana, justo después de la línea de nivel.
 
 ---
 
-## Paso 9 — Generar texto para Asana
+## Paso 8 — Generar texto para Asana
 
 Producí este bloque listo para copiar:
 
 ```
 Nivel: <emoji> <nivel>
 Puntaje: <X>/23
+Por qué este nivel: <justificación de 2-3 oraciones del Paso 7>
 
 📚 Documentación
 ✅/❌ Explica cómo correr el código.
@@ -383,11 +344,10 @@ Puntaje: <X>/23
 
 ---
 
-## Paso 10 — Output final
+## Paso 9 — Output final
 
 Entregá al usuario:
-1. El **archivo Excel** del checklist completado (usar `present_files` si está disponible)
-2. El **texto para Asana** en el chat (fácil de copiar)
-3. Un **resumen breve** del nivel y los puntos más importantes
+1. El **texto para Asana** en el chat (fácil de copiar)
+2. Un **resumen breve** del nivel y los puntos más importantes
 
 Si hay errores críticos, destacalos visualmente al principio del resumen.

@@ -3,7 +3,7 @@
  *
  * Se ejecuta automáticamente cada vez que un candidato completa el
  * Google Form de postulación. Llama a la Claude Routine con:
- *   - URL de descarga del ZIP desde Drive
+ *   - URL del repositorio Git del candidato (GitHub, GitLab, Bitbucket)
  *   - Datos del candidato (nombre, apellido, email)
  *   - ID de la carpeta Drive donde guardar el Excel de resultados
  *
@@ -20,10 +20,10 @@
 // (ajustar si los nombres de las preguntas cambian)
 const FIELD_NOMBRE   = "Nombre";
 const FIELD_APELLIDO = "Apellido";
-const FIELD_EMAIL    = "Email";
-const FIELD_ZIP      = "ZIP de la solución"; // campo de tipo "Carga de archivos"
+const FIELD_EMAIL    = "Correo Electrónico (Email)";
+const FIELD_REPO_URL = "Enlace al Repositorio (Link al Repositorio)"; // campo de tipo "Respuesta corta"
 
-// Nombre de la carpeta en Drive donde se guardarán los Excels de resultados
+// Nombre de la carpeta raíz en Drive donde se guardarán los Excels de resultados
 const RESULTS_FOLDER_NAME = "SCA - Resultados";
 
 // Header de beta requerido por la API de Routines
@@ -35,7 +35,7 @@ const ROUTINES_BETA_HEADER = "experimental-cc-routine-2026-04-01";
 /**
  * Guarda los secrets en Script Properties.
  * Corré esta función manualmente desde el editor ANTES de activar el trigger.
- * Reemplazá los valores con los reales.
+ * Reemplazá los valores con los reales (ver routine/SETUP.md).
  */
 function setup() {
   const props = PropertiesService.getScriptProperties();
@@ -62,42 +62,33 @@ function onFormSubmit(e) {
   try {
     Logger.log("Nueva respuesta recibida");
 
-    const responses  = e.namedValues;
-    const nombre     = getCellValue(responses, FIELD_NOMBRE);
-    const apellido   = getCellValue(responses, FIELD_APELLIDO);
-    const email      = getCellValue(responses, FIELD_EMAIL);
-    const fileUrls   = responses[FIELD_ZIP];  // array de URLs de Drive
+    const responses = e.namedValues;
+    const nombre    = getCellValue(responses, FIELD_NOMBRE);
+    const apellido  = getCellValue(responses, FIELD_APELLIDO);
+    const email     = getCellValue(responses, FIELD_EMAIL);
+    const repoUrl   = getCellValue(responses, FIELD_REPO_URL);
 
-    if (!fileUrls || fileUrls.length === 0) {
-      Logger.log("❌ No se encontró archivo ZIP en la respuesta");
+    if (!repoUrl) {
+      Logger.log("❌ No se encontró URL del repositorio en la respuesta");
+      return;
+    }
+
+    if (!isValidRepoUrl(repoUrl)) {
+      Logger.log(`❌ URL inválida o no reconocida: ${repoUrl}`);
+      notifyAdminOnError(new Error(`URL de repo inválida para ${apellido}, ${nombre}: ${repoUrl}`));
       return;
     }
 
     Logger.log(`Candidato: ${apellido}, ${nombre} (${email})`);
-
-    // Extraer el File ID desde la URL de Drive
-    const driveUrl = fileUrls[0].trim();
-    const fileId   = extractDriveFileId(driveUrl);
-
-    if (!fileId) {
-      Logger.log(`❌ No se pudo extraer el File ID de: ${driveUrl}`);
-      return;
-    }
-
-    Logger.log(`File ID del ZIP: ${fileId}`);
-
-    // Hacer el archivo accesible para descarga (anyone with link)
-    const downloadUrl = makeFileDownloadable(fileId);
-    Logger.log(`URL de descarga: ${downloadUrl}`);
+    Logger.log(`Repositorio: ${repoUrl}`);
 
     // Obtener o crear la carpeta de resultados en Drive
     const resultsFolderId = getOrCreateResultsFolder(apellido, nombre);
     Logger.log(`Carpeta de resultados: ${resultsFolderId}`);
 
     // Llamar a la Claude Routine
-    const runId = callRoutineApi({
-      zip_file_id:       fileId,
-      zip_download_url:  downloadUrl,
+    const sessionId = callRoutineApi({
+      repo_url:          repoUrl,
       results_folder_id: resultsFolderId,
       candidate: {
         nombre:   nombre,
@@ -106,53 +97,37 @@ function onFormSubmit(e) {
       },
     });
 
-    Logger.log(`✅ Routine iniciada. Session ID: ${runId}`);
+    Logger.log(`✅ Routine iniciada. Session ID: ${sessionId}`);
 
     // Guardar el Session ID en el Sheets para trazabilidad
-    updateSheetWithRunId(e, runId);
+    updateSheetWithSessionId(e, sessionId);
 
   } catch (error) {
     Logger.log(`❌ Error en onFormSubmit: ${error.message}\n${error.stack}`);
-    // Notificar al admin por email si hay un error crítico
     notifyAdminOnError(error);
   }
 }
 
 
+// ─── Validación de URL ────────────────────────────────────────────────────────
+
+/**
+ * Verifica que la URL sea un repositorio Git reconocido.
+ * Acepta GitHub, GitLab y Bitbucket (HTTP y SSH).
+ */
+function isValidRepoUrl(url) {
+  const patterns = [
+    /^https:\/\/github\.com\/.+\/.+/,
+    /^https:\/\/gitlab\.com\/.+\/.+/,
+    /^https:\/\/bitbucket\.org\/.+\/.+/,
+    /^git@github\.com:.+\/.+\.git$/,
+    /^git@gitlab\.com:.+\/.+\.git$/,
+  ];
+  return patterns.some(p => p.test(url.trim()));
+}
+
+
 // ─── Drive helpers ────────────────────────────────────────────────────────────
-
-/**
- * Extrae el File ID de una URL de Google Drive.
- * Soporta los formatos:
- *   https://drive.google.com/open?id=FILE_ID
- *   https://drive.google.com/file/d/FILE_ID/view
- */
-function extractDriveFileId(url) {
-  // Formato: ?id=FILE_ID
-  let match = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-  if (match) return match[1];
-
-  // Formato: /file/d/FILE_ID/
-  match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
-  if (match) return match[1];
-
-  return null;
-}
-
-/**
- * Comparte el archivo con "anyone with the link" para que la Routine
- * pueda descargarlo sin autenticación.
- * Devuelve la URL de descarga directa.
- */
-function makeFileDownloadable(fileId) {
-  const file = DriveApp.getFileById(fileId);
-
-  // Compartir con cualquier persona que tenga el link (solo lectura)
-  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-
-  // URL de descarga directa (sin página de preview)
-  return `https://drive.google.com/uc?export=download&id=${fileId}`;
-}
 
 /**
  * Obtiene o crea la carpeta de resultados para el candidato.
@@ -196,9 +171,9 @@ function getOrCreateResultsFolder(apellido, nombre) {
  * La Routine recibe ese string y lo parsea para extraer los datos del candidato.
  */
 function callRoutineApi(payload) {
-  const props           = PropertiesService.getScriptProperties();
-  const endpointUrl     = props.getProperty("ROUTINE_ENDPOINT_URL");
-  const routineToken    = props.getProperty("ROUTINE_TOKEN");
+  const props        = PropertiesService.getScriptProperties();
+  const endpointUrl  = props.getProperty("ROUTINE_ENDPOINT_URL");
+  const routineToken = props.getProperty("ROUTINE_TOKEN");
 
   if (!endpointUrl || endpointUrl.includes("REPLACE_ME")) {
     throw new Error("ROUTINE_ENDPOINT_URL no configurado. Corré setup() primero.");
@@ -214,18 +189,18 @@ function callRoutineApi(payload) {
   });
 
   const response = UrlFetchApp.fetch(endpointUrl, {
-    method:             "POST",
+    method:  "POST",
     headers: {
-      "Authorization":  `Bearer ${routineToken}`,
+      "Authorization":     `Bearer ${routineToken}`,
       "anthropic-version": "2023-06-01",
-      "anthropic-beta": ROUTINES_BETA_HEADER,
-      "Content-Type":   "application/json",
+      "anthropic-beta":    ROUTINES_BETA_HEADER,
+      "Content-Type":      "application/json",
     },
     payload:            body,
     muteHttpExceptions: true,
   });
 
-  const statusCode  = response.getResponseCode();
+  const statusCode   = response.getResponseCode();
   const responseBody = response.getContentText();
 
   if (statusCode !== 200 && statusCode !== 201) {
@@ -252,17 +227,15 @@ function getCellValue(namedValues, fieldName) {
 }
 
 /**
- * Agrega el Run ID de la Routine en la última columna de la fila recién enviada.
- * Útil para trazabilidad: sabés qué run corresponde a qué respuesta.
+ * Agrega el Session ID de la Routine en la última columna de la fila enviada.
+ * Útil para trazabilidad: sabés qué sesión corresponde a qué respuesta.
  */
-function updateSheetWithRunId(e, runId) {
+function updateSheetWithSessionId(e, sessionId) {
   try {
-    const sheet = e.range.getSheet();
-    const row   = e.range.getRow();
-
-    // Buscar la última columna con datos y escribir en la siguiente
+    const sheet   = e.range.getSheet();
+    const row     = e.range.getRow();
     const lastCol = sheet.getLastColumn();
-    sheet.getRange(row, lastCol + 1).setValue(`Routine session: ${runId}`);
+    sheet.getRange(row, lastCol + 1).setValue(`Routine session: ${sessionId}`);
   } catch (err) {
     Logger.log(`No se pudo actualizar el sheet: ${err.message}`);
   }
@@ -292,7 +265,7 @@ function notifyAdminOnError(error) {
 
 /**
  * Para probar sin necesidad de enviar el formulario.
- * Reemplazá FILE_ID con el ID real de un ZIP en Drive.
+ * Reemplazá la URL del repo por una URL real de un repo de prueba.
  */
 function testTrigger() {
   const mockEvent = {
@@ -300,7 +273,7 @@ function testTrigger() {
       [FIELD_NOMBRE]:   ["Juan"],
       [FIELD_APELLIDO]: ["García"],
       [FIELD_EMAIL]:    ["juan@ejemplo.com"],
-      [FIELD_ZIP]:      ["https://drive.google.com/open?id=REPLACE_WITH_REAL_FILE_ID"],
+      [FIELD_REPO_URL]: ["https://github.com/juangarcia/prueba-tecnica"],
     },
     range: {
       getSheet: () => SpreadsheetApp.getActiveSpreadsheet().getActiveSheet(),

@@ -10,9 +10,13 @@ automática cuando un candidato envía el formulario.
 - Cuenta claude.ai con plan **Pro, Max, Team o Enterprise**
 - Claude Code on the web habilitado (Settings → Claude Code)
 - El repositorio SCA en GitHub (necesario para que la Routine acceda a los
-  validadores Python y al template del Excel)
-- Slack Webhook URL
-- Asana Personal Access Token + Project GID
+  validadores Python y al skill)
+- Workspace de **Slack** donde vas a postear resultados y alertas
+- Proyecto de **Asana** donde se crean las tasks de corrección, y su GID
+  (lo sacás de la URL: `app.asana.com/0/<PROJECT_GID>/...`)
+
+> No necesitás webhook de Slack ni Personal Access Token de Asana — la Routine
+> usa **conectores MCP** con OAuth del dueño de la Routine. Ver Paso 4.
 
 ---
 
@@ -29,7 +33,7 @@ gh repo create qualabs/sca --private --push --source .
 ```
 
 > La Routine conecta el repo para tener acceso al código Python de los validadores
-> (`sca/validators/`) y al template del Excel (`Correccion/Checklist corrección.xlsx`).
+> (`sca/validators/`) y al skill de corrección (`sca-corrector/SKILL.md`).
 
 ---
 
@@ -58,42 +62,51 @@ En la sección **Environment** de la Routine:
 
 ### Setup script
 ```bash
-# Instalar dependencias del SCA
+# El candidato trae sus propias deps — la Routine las instala dinámicamente
+# en el Paso 4 del PROMPT. Acá solo chequeamos que las herramientas base
+# estén disponibles.
 cd /workspace
-pip install -r requirements.txt --break-system-packages --quiet 2>/dev/null || true
-pip install openpyxl requests --break-system-packages --quiet
-
-# Instalar curl, unzip (disponibles en el entorno por defecto)
-which curl unzip python3
+which git curl unzip python3 pip node npm
 echo "✅ Entorno listo"
 ```
 
+> Ya no instalamos `openpyxl` ni `requests`: sacamos el paso del Excel y los
+> conectores MCP se llaman con tools, no con `curl`.
+
 ### Network access
-Seleccionar **Full** — la Routine necesita descargar ZIPs desde Google Drive
-y llamar a las APIs de Slack y Asana.
+Seleccionar **Full** — la Routine necesita clonar el repo del candidato
+(GitHub/GitLab) e instalar dependencias (pip/npm).
 
 ### Environment variables
-Agregar las siguientes variables:
+Agregar solo estas dos referencias (no son secretos — son IDs/nombres):
 
-| Variable              | Valor                                        |
-|-----------------------|----------------------------------------------|
-| `SLACK_WEBHOOK_URL`   | `https://hooks.slack.com/services/...`       |
-| `ASANA_PAT`           | `1/123456:...` (Personal Access Token)       |
-| `ASANA_PROJECT_GID`   | `123456789` (GID del proyecto en Asana)      |
+| Variable            | Valor                                                              |
+|---------------------|--------------------------------------------------------------------|
+| `SLACK_CHANNEL`     | Canal destino, ej. `#sca-correcciones` (o el ID del canal)         |
+| `ASANA_PROJECT_GID` | GID del proyecto en Asana, ej. `1234567890123456`                  |
 
-> Los secretos de Slack y Asana van acá, NO en Apps Script.
+> Los secretos de Slack y Asana **no van acá** — se configuran vía OAuth
+> en los conectores MCP del Paso 4.
 
 ---
 
-## Paso 4 — Configurar connectors MCP (opcional)
+## Paso 4 — Configurar conectores MCP (requerido)
 
-Si querés que la Routine use MCP para Drive o Slack en lugar de llamadas curl:
+La Routine usa dos conectores MCP con OAuth del dueño. Activalos en la sección
+**Connectors** de la Routine:
 
-1. Ir a la sección **Connectors** de la Routine
-2. Agregar **Google Drive** — para subir el Excel directamente a la carpeta de resultados
-3. Agregar **Slack** — para enviar el mensaje de resultado
+1. **Slack** — para postear correcciones (Paso 10 del PROMPT) y alertas de
+   error de los pasos críticos (Paso 0 del PROMPT).
+2. **Asana** — para crear la task con el feedback formateado (Paso 9 del PROMPT).
 
-> Si no configurás connectors, la Routine usará curl con las variables de entorno.
+Para cada uno, hacer click en **Connect**, autorizar el workspace correcto, y
+verificar que el panel muestre "Connected" antes de seguir.
+
+> **Trade-off conocido:** los mensajes de Slack y las tasks de Asana quedan
+> creados con la identidad del dueño de la Routine (no con una voz de bot
+> dedicada). Aceptable para v1; migrar a API keys (webhook Slack + PAT Asana)
+> cuando se necesite separación de identidad o más robustez en modo
+> unattended.
 
 ---
 
@@ -129,37 +142,40 @@ Con el endpoint URL y el token del paso anterior:
 ### Prueba rápida (sin formulario)
 
 1. En el editor de Apps Script, abrir `trigger.gs`
-2. Reemplazar `REPLACE_WITH_REAL_FILE_ID` en `testTrigger()` con el ID real de
-   un ZIP de prueba en Drive
+2. Ajustar los valores de prueba en `testTrigger()` (repo URL del candidato
+   y datos del candidato)
 3. Ejecutar `testTrigger()`
 4. Revisar los logs — deberías ver la Session URL
 
 ### Prueba completa
 
-1. Completar el Google Form con datos de prueba y subir un ZIP real
+1. Completar el Google Form con datos de prueba y la URL del repo del candidato
 2. El trigger `onFormSubmit` se ejecuta automáticamente
 3. En el Sheets deberías ver el Session ID en la última columna de la fila
 4. Abrir la Session URL para ver la corrección en tiempo real
+5. Al finalizar, verificar:
+   - Una task nueva en el proyecto de Asana (con el checklist formateado)
+   - Un mensaje en el canal de Slack `$SLACK_CHANNEL`
 
 ---
 
 ## Estructura resultante
 
 ```
-Google Form  →  Drive (ZIP) + Sheets (datos)
+Google Form  →  Sheets (datos del candidato + repo URL)
                         ↓
               Apps Script (onFormSubmit)
                         ↓
               Claude Routine API (/fire)
                         ↓
               Routine session (cloud):
-                1. Descarga ZIP
-                2. Corre validadores Python
-                3. Analiza código
-                4. Genera Excel
-                5. Sube Excel a Drive
-                6. Notifica Slack
-                7. Crea tarea Asana
+                1. Clona el repo del candidato
+                2. Corre validadores Python (Parte A y B)
+                3. Analiza calidad del código
+                4. Determina nivel + justificación
+                5. Persiste scores.json
+                6. Crea task en Asana (registro autoritativo)
+                7. Notifica en Slack (best-effort)
 ```
 
 ---
@@ -175,5 +191,13 @@ Ya está incluido en `trigger.gs` — verificá que estés usando la versión m�
 **La Routine no encuentra el validador:**
 Verificar que el repo SCA esté conectado y que `sca/validators/` exista en el repo.
 
-**ZIP no se descarga:** El archivo de Drive no está compartido como "anyone with link".
-El script `makeFileDownloadable()` en Apps Script lo hace automáticamente.
+**El Paso 9 falla con "tool not available" o similar:** El conector de Asana no
+está habilitado en la Routine. Ir a **Connectors** y verificar que diga
+"Connected". Misma idea para Slack en el Paso 10.
+
+**El Paso 0 aborta con "faltan env vars":** No configuraste `SLACK_CHANNEL`
+o `ASANA_PROJECT_GID` en la sección Environment variables de la Routine.
+
+**No se pudo clonar el repo del candidato:** Si el candidato usó un repo
+privado sin darte acceso, el `git clone` falla. En ese caso, la Routine
+alerta a Slack con el error y corta antes del análisis.

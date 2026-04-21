@@ -1,12 +1,25 @@
+# macOS
 .DS_Store
+
+# Node
 node_modules/
 dist/
+
+# Secrets
 .env
 
-node_modules/
-.DS_Store
-.env
+# Python
+__pycache__/
+*.pyc
 
-infra/
-infra_old/
+# SCA — pruebas de referencia (no versionar zips/xlsx pesados)
 sca-corrector/references/backend/
+
+# Terraform caches (si se vuelve a agregar infra)
+.terraform/
+*.tfstate
+*.tfstate.backup
+tfplan
+
+# LibreOffice lockfiles
+.~lock.*#
