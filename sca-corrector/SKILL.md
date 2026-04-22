@@ -179,13 +179,7 @@ result = validate_from_string(<output_parte_b>, DATA_DIR)
 print(result.summary())
 ```
 
-**Si el validator falla o devuelve error de formato**, antes de marcar Parte B como incorrecta, verificá manualmente si la lista de usuarios cubre los 8 módulos. Podés usar el `verificador.py` original:
-
-```bash
-cd "$SCA_ROOT/datos prueba tecnica"
-python3 "$SCA_ROOT/Correccion/verificador.py"
-# Ingresar la lista de usuarios cuando pida input
-```
+**Si el validator falla o devuelve error de formato**, antes de marcar Parte B como incorrecta, verificá manualmente si la lista de usuarios cubre los 8 módulos. Si el formato del output del candidato no es parseable por `validate_from_string`, extraé a mano los nombres de usuario de su output y chequeá contra los 8 módulos listados en los JSON de `Prueba tecnica/datos prueba tecnica/`.
 
 Marcá Parte B como incorrecta solo si los módulos no quedan cubiertos, **no** por diferencias en formato del output (nombres de usuario vs rutas, orden de la lista, etc.).
 
@@ -310,36 +304,56 @@ Guardá esta justificación — el Paso 8 la incluye en el texto para Asana, jus
 
 ## Paso 8 — Generar texto para Asana
 
-Producí este bloque listo para copiar:
+El formato está centralizado en `sca/reporter/templates.py` — **es la fuente única de verdad**. Si cambia el checklist, las secciones o el orden, se toca ese archivo (nunca dupliques el template acá ni en la Routine).
+
+Armá el payload y el texto invocando los builders del módulo:
+
+```python
+import os, sys, json
+sys.path.insert(0, os.environ['SCA_ROOT'])
+from sca.reporter.templates import (
+    build_scores_payload, build_asana_text, build_asana_title,
+)
+
+scores = {
+    # 23 criterios scoreables + fila 34 con el nivel (0-3)
+    3:  <1|0>,  4:  <1|0>,  5:  <1|0>,
+    8:  <1|0>,  9:  <1|0>, 10: <1|0>, 11: <1|0>, 12: <1|0>, 13: <1|0>,
+    16: <1|0>, 17: <1|0>, 18: <1|0>, 19: <1|0>, 20: <1|0>,
+    21: <1|0>, 22: <1|0>, 23: <1|0>, 24: <1|0>, 25: <1|0>,
+    28: <1|0>, 29: <1|0>, 30: <1|0>, 31: <1|0>,
+    34: <0|1|2|3>,
+}
+
+payload = build_scores_payload(
+    scores,
+    apellido="<apellido>",
+    nombre="<nombre>",
+    aspectos=["<aspecto 1>", "<aspecto 2>"],
+    otras_notas="<notas de corrección>",
+    feedback="<feedback para el candidato>",
+    nivel_justif="<justificación de 2-3 oraciones del Paso 7>",
+)
+
+print(build_asana_title(payload))   # "SCA — <Apellido>, <Nombre>"
+print(build_asana_text(payload))    # bloque completo con secciones + ✅/❌
+```
+
+El texto que devuelve `build_asana_text` tiene la estructura:
 
 ```
 Nivel: <emoji> <nivel>
 Puntaje: <X>/23
-Por qué este nivel: <justificación de 2-3 oraciones del Paso 7>
+Por qué este nivel: <justificación>
 
-📚 Documentación
-✅/❌ Explica cómo correr el código.
-✅/❌ Documenta la versión de la tecnología...
-✅/❌ Explica cómo funciona el código...
+📚 Documentación       → filas 3, 4, 5
+👨‍💻 Usabilidad         → filas 8, 9, 10, 11, 12, 13
+🍝 Calidad del código  → filas 16-25
+🛠 Eficacia y Eficiencia → filas 28, 29, 30, 31
 
-👨‍💻 Usabilidad
-✅/❌ El output es consistente...
-[... todos los criterios con su ícono]
-
-🍝 Calidad del código
-[...]
-
-🛠 Eficacia y Eficiencia
-[...]
-
-⭐ Aspectos que destacan:
-(+/-) <observación>
-
-📝 Otras notas:
-<notas>
-
-🎁 Feedback:
-<feedback para el candidato>
+⭐ Aspectos que destacan: ...
+📝 Otras notas: ...
+🎁 Feedback: ...
 ```
 
 ---

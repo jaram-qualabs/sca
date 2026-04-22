@@ -5,7 +5,9 @@
  * Google Form de postulación. Llama a la Claude Routine con:
  *   - URL del repositorio Git del candidato (GitHub, GitLab, Bitbucket)
  *   - Datos del candidato (nombre, apellido, email)
- *   - ID de la carpeta Drive donde guardar el Excel de resultados
+ *
+ * La Routine clona el repo, lo corrige, crea una task en Asana y notifica
+ * en Slack — no se sube nada a Drive (ver CLAUDE.md "Decisiones de diseño").
  *
  * SETUP INICIAL (hacer una vez):
  *   1. Abrí el script en Apps Script Editor
@@ -22,9 +24,6 @@ const FIELD_NOMBRE   = "Nombre";
 const FIELD_APELLIDO = "Apellido";
 const FIELD_EMAIL    = "Correo Electrónico (Email)";
 const FIELD_REPO_URL = "Enlace al Repositorio (Link al Repositorio)"; // campo de tipo "Respuesta corta"
-
-// Nombre de la carpeta raíz en Drive donde se guardarán los Excels de resultados
-const RESULTS_FOLDER_NAME = "SCA - Resultados";
 
 // Header de beta requerido por la API de Routines
 const ROUTINES_BETA_HEADER = "experimental-cc-routine-2026-04-01";
@@ -82,14 +81,9 @@ function onFormSubmit(e) {
     Logger.log(`Candidato: ${apellido}, ${nombre} (${email})`);
     Logger.log(`Repositorio: ${repoUrl}`);
 
-    // Obtener o crear la carpeta de resultados en Drive
-    const resultsFolderId = getOrCreateResultsFolder(apellido, nombre);
-    Logger.log(`Carpeta de resultados: ${resultsFolderId}`);
-
     // Llamar a la Claude Routine
     const sessionId = callRoutineApi({
-      repo_url:          repoUrl,
-      results_folder_id: resultsFolderId,
+      repo_url: repoUrl,
       candidate: {
         nombre:   nombre,
         apellido: apellido,
@@ -124,38 +118,6 @@ function isValidRepoUrl(url) {
     /^git@gitlab\.com:.+\/.+\.git$/,
   ];
   return patterns.some(p => p.test(url.trim()));
-}
-
-
-// ─── Drive helpers ────────────────────────────────────────────────────────────
-
-/**
- * Obtiene o crea la carpeta de resultados para el candidato.
- * Estructura: "SCA - Resultados" / "Apellido_Nombre"
- */
-function getOrCreateResultsFolder(apellido, nombre) {
-  const rootFolders = DriveApp.getFoldersByName(RESULTS_FOLDER_NAME);
-  let rootFolder;
-
-  if (rootFolders.hasNext()) {
-    rootFolder = rootFolders.next();
-  } else {
-    rootFolder = DriveApp.createFolder(RESULTS_FOLDER_NAME);
-    Logger.log(`Carpeta raíz creada: ${RESULTS_FOLDER_NAME}`);
-  }
-
-  const candidateFolderName = `${apellido}_${nombre}`;
-  const candidateFolders = rootFolder.getFoldersByName(candidateFolderName);
-  let candidateFolder;
-
-  if (candidateFolders.hasNext()) {
-    candidateFolder = candidateFolders.next();
-  } else {
-    candidateFolder = rootFolder.createFolder(candidateFolderName);
-    Logger.log(`Carpeta de candidato creada: ${candidateFolderName}`);
-  }
-
-  return candidateFolder.getId();
 }
 
 

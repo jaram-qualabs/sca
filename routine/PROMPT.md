@@ -310,15 +310,14 @@ Para cada criterio del checklist asigná **0 o 1** con justificación breve (1-2
 
 ## Paso 8 — Consolidar scores y persistir
 
-Producí los 23 criterios + el nivel + la justificación del Paso 7 y persistilos en `scores.json` para que los pasos 9 y 10 los reutilicen. Paso crítico: si falla (excepción Python), aplicá el **patrón de manejo de errores del Paso 0** (alerta a Slack + abort).
+Producí los 23 criterios + el nivel + la justificación del Paso 7 y persistilos en `scores.json` para que los pasos 9 y 10 los reutilicen. El armado del payload está centralizado en `sca/reporter/templates.py` — acá solo alimentamos los valores. Paso crítico: si falla (excepción Python), aplicá el **patrón de manejo de errores del Paso 0** (alerta a Slack + abort).
 
 ```python
-import os, json
+import os, sys, json
+sys.path.insert(0, os.environ['SCA_ROOT'])
+from sca.reporter.templates import build_scores_payload
 
 SCA_WORK = os.environ['SCA_WORK']
-
-apellido = os.environ['CANDIDATE_APELLIDO']
-nombre   = os.environ['CANDIDATE_NOMBRE']
 
 scores = {
     3:  <val>,   # Explica cómo correr
@@ -347,35 +346,21 @@ scores = {
     34: <0|1|2|3>,  # Nivel
 }
 
-aspectos     = ["<aspectos destacados 1>", "<aspectos destacados 2>"]
-otras_notas  = "<notas de corrección>"
-feedback     = "<feedback para el candidato>"
-nivel_justif = "<2-3 oraciones explicando por qué este nivel y no el contiguo — ver Paso 7 del skill>"
+payload = build_scores_payload(
+    scores,
+    apellido=os.environ['CANDIDATE_APELLIDO'],
+    nombre=os.environ['CANDIDATE_NOMBRE'],
+    aspectos=["<aspectos destacados 1>", "<aspectos destacados 2>"],
+    otras_notas="<notas de corrección>",
+    feedback="<feedback para el candidato>",
+    nivel_justif="<2-3 oraciones explicando por qué este nivel y no el contiguo — ver Paso 7 del skill>",
+)
 
-# Persistir los datos del Paso 7 para reutilizarlos en Asana (Paso 9) y Slack (Paso 10)
-NIVEL_LABEL  = {0: '🔴 No suficiente', 1: '🟡 Trainee', 2: '🟢 Junior', 3: '⭐ Semi Senior'}
-CRITERIOS_23 = [3,4,5,8,9,10,11,12,13,16,17,18,19,20,21,22,23,24,25,28,29,30,31]
-
-nivel_val = scores[34]
-puntaje   = sum(1 for f in CRITERIOS_23 if scores.get(f) == 1)
-
-payload = {
-    'scores':      scores,
-    'aspectos':    aspectos,
-    'otras_notas': otras_notas,
-    'feedback':    feedback,
-    'candidato':   {'apellido': apellido, 'nombre': nombre},
-    'resumen':     {
-        'nivel_val':    nivel_val,
-        'nivel':        NIVEL_LABEL[nivel_val],
-        'puntaje':      f'{puntaje}/23',
-        'justificacion': nivel_justif,  # humano lee esto para validar la clasificación
-    },
-}
 with open(os.path.join(SCA_WORK, 'scores.json'), 'w') as f:
     json.dump(payload, f, ensure_ascii=False, indent=2)
 
-print(f"✅ scores.json guardado — nivel: {NIVEL_LABEL[nivel_val]} — puntaje: {puntaje}/23")
+r = payload['resumen']
+print(f"✅ scores.json guardado — nivel: {r['nivel']} — puntaje: {r['puntaje']}")
 ```
 
 ---
@@ -386,92 +371,24 @@ Asana es el **registro autoritativo** de la corrección (lo que RR.HH. consume).
 
 ### 9.1 — Construir el texto de la tarea
 
-El texto se construye **determinísticamente** desde `scores.json` (persistido en Paso 8). Esto garantiza que el formato coincide con el Paso 8 del skill y evita ambigüedades de escaping con emojis y saltos de línea.
+El texto se construye **determinísticamente** desde `scores.json` (persistido en Paso 8) usando los builders de `sca/reporter/templates.py`. Esto garantiza que el formato coincide con el del skill y evita ambigüedades de escaping con emojis y saltos de línea.
 
 ```python
-import os, json
+import os, sys, json
+sys.path.insert(0, os.environ['SCA_ROOT'])
+from sca.reporter.templates import build_asana_text, build_asana_title
 
 SCA_WORK = os.environ['SCA_WORK']
 
 with open(os.path.join(SCA_WORK, 'scores.json')) as f:
-    data = json.load(f)
+    payload = json.load(f)
 
-# scores.json tiene keys como strings al deserializar → convertimos a int
-scores      = {int(k): v for k, v in data['scores'].items()}
-aspectos    = data.get('aspectos', [])
-otras_notas = data.get('otras_notas', '')
-feedback    = data.get('feedback', '')
-resumen     = data['resumen']  # {nivel, puntaje, nivel_val}
-
-def icon(f):
-    return '✅' if scores.get(f) == 1 else '❌'
-
-SECCIONES = [
-    ('📚 Documentación', [
-        (3,  'Explica cómo correr el código'),
-        (4,  'Documenta la versión de la tecnología'),
-        (5,  'Explica elecciones o decisiones de diseño'),
-    ]),
-    ('👨‍💻 Usabilidad', [
-        (8,  'El output es consistente entre Parte A y Parte B'),
-        (9,  'Parametriza la carpeta de archivos de entrada'),
-        (10, 'No hardcodea nombres de archivos'),
-        (11, 'No hardcodea la cantidad de archivos'),
-        (12, 'No hardcodea providers'),
-        (13, 'Imprime la salida como pide la letra'),
-    ]),
-    ('🍝 Calidad del código', [
-        (16, 'Nomenclatura consistente'),
-        (17, 'Comentarios adecuados'),
-        (18, 'Sin comentarios excesivos'),
-        (19, 'Sigue convenciones de la tecnología'),
-        (20, 'Divide en funciones'),
-        (21, 'No repite código de Parte A en Parte B'),
-        (22, 'Sin código duplicado interno'),
-        (23, 'Sin código mal indentado'),
-        (24, 'Sin formato irregular'),
-        (25, 'Tiene error handling (bonus)'),
-    ]),
-    ('🛠 Eficacia y Eficiencia', [
-        (28, 'Parte A correcta'),
-        (29, 'Parte B cubre los 8 módulos'),
-        (30, 'Busca un set reducido de usuarios'),
-        (31, 'Asegura el set mínimo (bonus)'),
-    ]),
-]
-
-lines = [
-    f"Nivel: {resumen['nivel']}",
-    f"Puntaje: {resumen['puntaje']}",
-    f"Por qué este nivel: {resumen.get('justificacion', '—')}",
-    '',
-]
-for titulo, items in SECCIONES:
-    lines.append(titulo)
-    for f, desc in items:
-        lines.append(f'{icon(f)} {desc}')
-    lines.append('')
-
-lines.append('⭐ Aspectos que destacan:')
-for a in (aspectos or ['—']):
-    lines.append(a)
-lines.append('')
-
-lines.append('📝 Otras notas:')
-lines.append(otras_notas or '—')
-lines.append('')
-
-lines.append('🎁 Feedback:')
-lines.append(feedback or '—')
-
-texto_asana = '\n'.join(lines)
+texto_asana = build_asana_text(payload)
+task_title  = build_asana_title(payload)
 
 with open(os.path.join(SCA_WORK, 'texto_asana.txt'), 'w') as f:
     f.write(texto_asana)
 
-# Exponemos también el título para el tool call del 9.2
-cand       = data['candidato']
-task_title = f'SCA — {cand["apellido"]}, {cand["nombre"]}'
 print(f"Título: {task_title}")
 print(texto_asana)
 ```
@@ -504,7 +421,7 @@ with open(os.path.join(SCA_WORK, 'asana.json'), 'w') as f:
 print(f"✅ Asana task creada: {asana_url}")
 ```
 
-> **Nota de consistencia:** El formato y el orden de secciones replican el Paso 8 del skill (`$SCA_ROOT/sca-corrector/SKILL.md`). Si cambia el checklist, actualizá `SECCIONES` acá y, en paralelo, la plantilla del Paso 8 del skill.
+> **Nota de consistencia:** El formato y el orden de secciones están definidos en `sca/reporter/templates.py` (constante `SECCIONES`). Si cambia el checklist, tocás **solo ese archivo** — la Routine y el skill lo consumen desde ahí.
 
 ---
 
@@ -515,30 +432,23 @@ print(f"✅ Asana task creada: {asana_url}")
 ### 10.1 — Construir el texto del mensaje
 
 ```python
-import os, json
+import os, sys, json
+sys.path.insert(0, os.environ['SCA_ROOT'])
+from sca.reporter.templates import build_slack_text
 
 SCA_WORK = os.environ['SCA_WORK']
-repo_url = os.environ['REPO_URL']
-email    = os.environ['CANDIDATE_EMAIL']
 
 with open(os.path.join(SCA_WORK, 'scores.json')) as f:
-    data = json.load(f)
-cand = data['candidato']
-r    = data['resumen']
-
-# Link a Asana (a esta altura debería existir — el Paso 9 es crítico)
+    payload = json.load(f)
 with open(os.path.join(SCA_WORK, 'asana.json')) as f:
-    asana_link = json.load(f)['url']
+    asana_url = json.load(f)['url']
 
-text_lines = [
-    "*SCA — Corrección completada* ✅",
-    f"*Candidato:* {cand['apellido']}, {cand['nombre']} ({email})",
-    f"*Repo:* {repo_url}",
-    f"*Nivel:* {r['nivel']}",
-    f"*Puntaje:* {r['puntaje']}",
-    f"*Asana:* {asana_link}",
-]
-message_text = '\n'.join(text_lines)
+message_text = build_slack_text(
+    payload,
+    repo_url=os.environ['REPO_URL'],
+    email=os.environ['CANDIDATE_EMAIL'],
+    asana_url=asana_url,
+)
 print(message_text)
 ```
 
@@ -568,7 +478,9 @@ El estado final de la routine se deriva de los archivos que quedaron persistidos
 Construí el resumen a partir de los archivos persistidos y reportalo al chat:
 
 ```python
-import os, json
+import os, sys, json
+sys.path.insert(0, os.environ['SCA_ROOT'])
+from sca.reporter.templates import critical_failures
 
 SCA_WORK = os.environ['SCA_WORK']
 
@@ -603,12 +515,7 @@ if scores:
     print(f"Nivel:     {r['nivel']}")
     print(f"Puntaje:   {r['puntaje']}")
 
-    # Errores críticos (F12, F28, F29 = 0)
-    criticos = {12: 'F12 hardcodea providers',
-                28: 'F28 Parte A incorrecta',
-                29: 'F29 Parte B no cubre módulos'}
-    fallas = [msg for f, msg in criticos.items()
-              if scores['scores'].get(str(f), scores['scores'].get(f)) == 0]
+    fallas = critical_failures(scores)
     if fallas:
         print('\n❗ Errores críticos detectados:')
         for m in fallas:

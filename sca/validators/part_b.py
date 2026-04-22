@@ -1,7 +1,6 @@
 """
 RF-02B: Validador de Parte B
 Verifica que el set de usuarios elegido por el candidato cubre todos los módulos.
-Basado en la lógica de verificador.py del manual.
 """
 
 import json
