@@ -78,15 +78,30 @@ Seleccionar **Full** — la Routine necesita clonar el repo del candidato
 (GitHub/GitLab) e instalar dependencias (pip/npm).
 
 ### Environment variables
-Agregar solo estas dos referencias (no son secretos — son IDs/nombres):
+En la misma sección **Environment**, abajo del setup script y del Network
+access, hay un bloque **Environment variables**. Click en **Add variable** y
+cargá solo estas dos referencias (no son secretos — son IDs/nombres):
 
 | Variable            | Valor                                                              |
 |---------------------|--------------------------------------------------------------------|
 | `SLACK_CHANNEL`     | Canal destino, ej. `#sca-correcciones` (o el ID del canal)         |
 | `ASANA_PROJECT_GID` | GID del proyecto en Asana, ej. `1234567890123456`                  |
 
+**Cómo conseguir los valores:**
+
+- `SLACK_CHANNEL`: podés usar el nombre del canal con `#` adelante
+  (ej. `#sca-correcciones`) — el conector MCP lo resuelve. Si preferís el ID:
+  en Slack, click derecho sobre el canal → **View channel details** → al final
+  del modal aparece "Channel ID" (empieza con `C...`).
+- `ASANA_PROJECT_GID`: abrí el proyecto en Asana, y en la URL del browser vas
+  a ver algo como `app.asana.com/0/1234567890123456/list`. El número del medio
+  es el GID.
+
 > Los secretos de Slack y Asana **no van acá** — se configuran vía OAuth
 > en los conectores MCP del Paso 4.
+> El Paso 0 del PROMPT valida estas dos variables con fail-fast: si falta
+> alguna, la Routine corta con `❌ SCA no puede arrancar — faltan env vars: ...`
+> antes de clonar nada.
 
 ---
 
