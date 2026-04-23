@@ -255,10 +255,23 @@ cd "$SCA_WORK/$TASK_GID"
 
 # La URL firmada viene del MCP — exportala desde Python antes de este bloque
 # en ZIP_URL.
-http_code=$(curl -sS -L -o candidato.zip -w '%{http_code}' "$ZIP_URL")
+# Reintenta hasta 4 veces en 503 con backoff exponencial (2s, 4s, 8s, 16s).
+http_code="503"
+wait=2
+for attempt in 1 2 3 4 5; do
+  http_code=$(curl -sS -L -o candidato.zip -w '%{http_code}' "$ZIP_URL")
+  if [ "$http_code" = "200" ]; then break; fi
+  if [ "$http_code" = "503" ] && [ "$attempt" -lt 5 ]; then
+    echo "⚠️  Intento $attempt — HTTP 503, reintentando en ${wait}s..."
+    sleep "$wait"
+    wait=$((wait * 2))
+  else
+    break
+  fi
+done
 
 if [ "$http_code" != "200" ]; then
-  echo "❌ Descarga falló con HTTP $http_code"
+  echo "❌ Descarga falló con HTTP $http_code (tras $attempt intento/s)"
   head -c 500 candidato.zip
   exit 1
 fi
