@@ -1,7 +1,12 @@
 # SCA Routine — Setup
 
 Guía para crear y configurar la Routine en Claude Code que ejecuta la corrección
-automática cuando un candidato envía el formulario.
+automática **en modo cron** (una vez al día, poleando Asana).
+
+> Este setup describe el **flow actual** (Asana-triggered, cron). El flow viejo
+> basado en Google Form sigue documentado en `routine/PROMPT-form.md.legacy` +
+> `apps-script/SETUP.md`, y no está activo. Si querés volver a activarlo, leé
+> esos archivos — pero el flow actual lo reemplaza.
 
 ---
 
@@ -10,13 +15,14 @@ automática cuando un candidato envía el formulario.
 - Cuenta claude.ai con plan **Pro, Max, Team o Enterprise**
 - Claude Code on the web habilitado (Settings → Claude Code)
 - El repositorio SCA en GitHub (necesario para que la Routine acceda a los
-  validadores Python y al skill)
-- Workspace de **Slack** donde vas a postear resultados y alertas
-- Proyecto de **Asana** donde se crean las tasks de corrección, y su GID
-  (lo sacás de la URL: `app.asana.com/0/<PROJECT_GID>/...`)
+  validators y al skill)
+- Workspace de **Slack** donde postear resultados y alertas
+- Proyecto de **Asana** con:
+  - Una section llamada **"Para corregir"** (el nombre es configurable vía env var)
+  - Su GID (de la URL: `app.asana.com/0/<PROJECT_GID>/...`)
 
 > No necesitás webhook de Slack ni Personal Access Token de Asana — la Routine
-> usa **conectores MCP** con OAuth del dueño de la Routine. Ver Paso 4.
+> usa **conectores MCP** con OAuth del dueño de la Routine (Paso 4).
 
 ---
 
@@ -32,8 +38,9 @@ git commit -m "chore: initial commit"
 gh repo create qualabs/sca --private --push --source .
 ```
 
-> La Routine conecta el repo para tener acceso al código Python de los validadores
-> (`sca/validators/`) y al skill de corrección (`sca-corrector/SKILL.md`).
+La Routine conecta el repo para tener acceso al código Python de los validators
+(`sca/validators/`), al reporter (`sca/reporter/templates.py`) y al skill de
+corrección (`sca-corrector/SKILL.md`).
 
 ---
 
@@ -41,178 +48,207 @@ gh repo create qualabs/sca --private --push --source .
 
 1. Ir a [claude.ai/code/routines](https://claude.ai/code/routines)
 2. Click en **New routine**
-3. Completar el formulario:
+3. Completar:
 
 ### Nombre
+
 ```
-SCA — Corrector de Pruebas Técnicas
+SCA — Corrector diario de Pruebas Técnicas
 ```
 
 ### Prompt
+
 Copiar el contenido completo de `routine/PROMPT.md` (este repo).
 
 ### Repositorio
+
 Conectar el repo `qualabs/sca` (o el nombre que le hayas dado).
 
 ---
 
 ## Paso 3 — Configurar el entorno (Cloud Environment)
 
-En la sección **Environment** de la Routine:
-
 ### Setup script
+
 ```bash
-# El candidato trae sus propias deps — la Routine las instala dinámicamente
-# en el Paso 4 del PROMPT. Acá solo chequeamos que las herramientas base
-# estén disponibles.
 cd /workspace
-which git curl unzip python3 pip node npm
+which git curl unzip python3 pip node npm file
 echo "✅ Entorno listo"
 ```
 
-> Ya no instalamos `openpyxl` ni `requests`: sacamos el paso del Excel y los
-> conectores MCP se llaman con tools, no con `curl`.
-
 ### Network access
-Seleccionar **Full** — la Routine necesita clonar el repo del candidato
-(GitHub/GitLab) e instalar dependencias (pip/npm).
+
+Modo **Custom** con estos dominios permitidos (además de los que la Routine
+necesite por default para git/npm/pip):
+
+```
+asanausercontent.com
+*.asanausercontent.com
+```
+
+Sin esto, el Paso 4 del PROMPT falla al descargar el zip firmado de Asana con
+`403 "Host not in allowlist"` o `503 "DNS cache overflow"`.
+
+> Si también vas a mantener el flow viejo (o tus candidatos clonan de repos
+> privados por SSH), agregá los dominios que correspondan (`github.com`,
+> `gitlab.com`, etc.).
 
 ### Environment variables
-En la misma sección **Environment**, abajo del setup script y del Network
-access, hay un bloque **Environment variables**. Click en **Add variable** y
-cargá solo estas dos referencias (no son secretos — son IDs/nombres):
 
-| Variable            | Valor                                                              |
-|---------------------|--------------------------------------------------------------------|
-| `SLACK_CHANNEL`     | Canal destino, ej. `#sca-correcciones` (o el ID del canal)         |
-| `ASANA_PROJECT_GID` | GID del proyecto en Asana, ej. `1234567890123456`                  |
+En la sección **Environment variables** de la Routine, agregá estas tres
+referencias (no son secretos):
+
+| Variable             | Valor                                                          |
+|----------------------|----------------------------------------------------------------|
+| `SLACK_CHANNEL`      | Canal destino, ej. `#sca-correcciones`                         |
+| `ASANA_PROJECT_GID`  | GID del proyecto Asana, ej. `1200429007986535`                 |
+| `ASANA_SECTION_NAME` | (opcional, default `Para corregir`) nombre de la section       |
 
 **Cómo conseguir los valores:**
 
-- `SLACK_CHANNEL`: podés usar el nombre del canal con `#` adelante
-  (ej. `#sca-correcciones`) — el conector MCP lo resuelve. Si preferís el ID:
-  en Slack, click derecho sobre el canal → **View channel details** → al final
-  del modal aparece "Channel ID" (empieza con `C...`).
-- `ASANA_PROJECT_GID`: abrí el proyecto en Asana, y en la URL del browser vas
-  a ver algo como `app.asana.com/0/1234567890123456/list`. El número del medio
-  es el GID.
+- `SLACK_CHANNEL`: nombre del canal con `#` adelante (el conector MCP lo
+  resuelve) o el ID del canal (en Slack: click derecho sobre el canal →
+  **View channel details** → al final del modal, "Channel ID", empieza con `C...`).
+- `ASANA_PROJECT_GID`: abrí el proyecto en Asana; la URL tiene el formato
+  `app.asana.com/0/1234567890123456/list`. El número es el GID.
 
-> Los secretos de Slack y Asana **no van acá** — se configuran vía OAuth
-> en los conectores MCP del Paso 4.
-> El Paso 0 del PROMPT valida estas dos variables con fail-fast: si falta
-> alguna, la Routine corta con `❌ SCA no puede arrancar — faltan env vars: ...`
-> antes de clonar nada.
+> Los tokens de Slack/Asana **no van acá** — se configuran vía OAuth en los
+> conectores MCP (Paso 4).
+> El Paso 0.2 del PROMPT valida estas variables con fail-fast: si falta alguna,
+> la Routine corta con mensaje claro antes de hacer llamadas MCP.
 
 ---
 
-## Paso 4 — Configurar conectores MCP (requerido)
+## Paso 4 — Configurar conectores MCP
 
 La Routine usa dos conectores MCP con OAuth del dueño. Activalos en la sección
-**Connectors** de la Routine:
+**Connectors**:
 
-1. **Slack** — para postear correcciones (Paso 10 del PROMPT) y alertas de
-   error de los pasos críticos (Paso 0 del PROMPT).
-2. **Asana** — para crear la task con el feedback formateado (Paso 9 del PROMPT).
+1. **Asana** — listar sections/tasks/attachments, descargar URLs firmadas,
+   crear subtask con el feedback, dejar comentarios.
+2. **Slack** — postear correcciones y alertas de error.
 
-Para cada uno, hacer click en **Connect**, autorizar el workspace correcto, y
+Para cada uno: click en **Connect**, autorizar el workspace correcto, y
 verificar que el panel muestre "Connected" antes de seguir.
 
-> **Trade-off conocido:** los mensajes de Slack y las tasks de Asana quedan
+> **Trade-off conocido:** los mensajes de Slack y las subtasks de Asana quedan
 > creados con la identidad del dueño de la Routine (no con una voz de bot
-> dedicada). Aceptable para v1; migrar a API keys (webhook Slack + PAT Asana)
-> cuando se necesite separación de identidad o más robustez en modo
-> unattended.
+> dedicada). Aceptable por ahora; migrar a API keys (Slack webhook + Asana
+> PAT) cuando se necesite separación de identidad.
 
 ---
 
-## Paso 5 — Agregar el trigger de API
+## Paso 5 — Configurar el schedule (cron diario)
 
-1. En la sección **Triggers** → **Add trigger** → **API**
-2. Click en **Generate token**
-3. El modal te muestra:
-   - **Endpoint URL**: algo como `https://api.claude.ai/v1/routines/<routine_id>/fire`
-   - **Bearer token**: algo como `sk-ant-oat01-...`
-4. **Copiá ambos valores** — los vas a necesitar en el Paso siguiente.
-   No los vas a poder ver de nuevo (podés regenerar si los perdés).
+En la sección **Triggers** de la Routine → **Add trigger** → **Schedule**:
 
----
+- **Frecuencia:** diaria
+- **Hora:** `09:00` — zona horaria **`America/Argentina/Buenos_Aires`** (UTC-3)
+- Guardar.
 
-## Paso 6 — Cargar los secrets en Apps Script
+Con esto, la Routine corre una vez cada mañana laboral. Latencia máxima para
+RRHH: ~24h. Si tu instancia de claude.ai solo permite cron en UTC, usá `12:00`
+UTC (equivalente a 9am ART).
 
-Con el endpoint URL y el token del paso anterior:
-
-1. Abrir el editor de Apps Script del Google Sheet de respuestas
-2. En `trigger.gs`, reemplazar los valores en la función `setup()`:
-   ```javascript
-   ROUTINE_ENDPOINT_URL: "https://api.claude.ai/v1/routines/<routine_id>/fire",
-   ROUTINE_TOKEN:        "sk-ant-oat01-...",
-   ```
-3. Seleccionar la función `setup` en el dropdown y hacer click en **Ejecutar**
-4. Verificar en los logs que dice `✅ Secrets guardados en Script Properties.`
+> Si querés disparar manualmente (para testear sin esperar al cron), en la
+> misma sección Triggers agregá un trigger de tipo **Manual** y usalo desde
+> claude.ai.
 
 ---
 
-## Paso 7 — Probar el flujo completo
+## Paso 6 — Preparar el proyecto de Asana
 
-### Prueba rápida (sin formulario)
+1. **Crear la section "Para corregir"** si no existe (en el proyecto cuyo GID
+   pusiste en `ASANA_PROJECT_GID`).
+2. Convenir con RRHH el **flujo operativo**:
+   - Al recibir una prueba técnica, RRHH crea una task en ese proyecto.
+   - Título: cualquier cosa con el **nombre del candidato entre paréntesis**.
+     Ej: `"Prueba técnica (Mateo Pérez)"`.
+   - Adjuntan el `.zip` del candidato a la task.
+   - Mueven la task a la section **"Para corregir"**.
+3. Al día siguiente (o cuando corra el cron), la Routine:
+   - Procesa cada task de la section.
+   - Crea una subtask `"Comentarios y corrección SCA"` con el feedback.
+   - Postea en Slack.
+   - La task queda marcada como corregida (por la presencia de la subtask).
 
-1. En el editor de Apps Script, abrir `trigger.gs`
-2. Ajustar los valores de prueba en `testTrigger()` (repo URL del candidato
-   y datos del candidato)
-3. Ejecutar `testTrigger()`
-4. Revisar los logs — deberías ver la Session URL
+> RRHH no necesita mover la task después de la corrección: la idempotencia la
+> garantiza la subtask. Si querés, podés tener una Rule de Asana que mueva la
+> task a "Corregidas" cuando se crea la subtask — pero es opcional.
 
-### Prueba completa
+---
 
-1. Completar el Google Form con datos de prueba y la URL del repo del candidato
-2. El trigger `onFormSubmit` se ejecuta automáticamente
-3. En el Sheets deberías ver el Session ID en la última columna de la fila
-4. Abrir la Session URL para ver la corrección en tiempo real
-5. Al finalizar, verificar:
-   - Una task nueva en el proyecto de Asana (con el checklist formateado)
-   - Un mensaje en el canal de Slack `$SLACK_CHANNEL`
+## Paso 7 — Probar el flujo
+
+### Prueba manual (sin esperar el cron)
+
+1. Asegurate de tener al menos una task de prueba en la section "Para corregir"
+   del proyecto Asana configurado, con:
+   - Nombre entre paréntesis en el título.
+   - Un `.zip` adjunto (con un repo válido de Parte A + Parte B).
+2. En claude.ai/code/routines, abrí tu Routine.
+3. Dispará el trigger **Manual** (o click en "Run now").
+4. Mirá la session URL: deberías ver el batch completo procesando tasks.
+5. Al terminar, verificá:
+   - Subtask nueva en la task de Asana con el feedback.
+   - Mensaje en `$SLACK_CHANNEL` con el resumen.
+6. Volvé a disparar la Routine. Esta vez debería saltear la task (porque ya
+   tiene la subtask de corrección). Eso confirma la idempotencia del Paso 1.3.
+
+### Prueba del cron
+
+Dejar pasar un día. Al siguiente run programado, revisá los logs de la Routine
+en claude.ai y el canal de Slack.
 
 ---
 
 ## Estructura resultante
 
 ```
-Google Form  →  Sheets (datos del candidato + repo URL)
-                        ↓
-              Apps Script (onFormSubmit)
-                        ↓
-              Claude Routine API (/fire)
-                        ↓
-              Routine session (cloud):
-                1. Clona el repo del candidato
-                2. Corre validadores Python (Parte A y B)
-                3. Analiza calidad del código
-                4. Determina nivel + justificación
-                5. Persiste scores.json
-                6. Crea task en Asana (registro autoritativo)
-                7. Notifica en Slack (best-effort)
+Cron diario 9am ART
+        ↓
+Routine session (cloud):
+  1. Lista tasks en section "Para corregir"
+  2. Filtra las que ya tienen subtask "Comentarios y corrección SCA"
+  3. Por cada task restante:
+     a. Extrae nombre del título (entre paréntesis)
+     b. Baja el .zip más reciente de Asana
+     c. Auto-detecta backend vs frontend (frontend se skipea por ahora)
+     d. Corrige según el skill sca-corrector
+     e. Crea subtask "Comentarios y corrección SCA" con el feedback
+     f. Postea en Slack
+  4. Resume el batch en Slack
 ```
 
 ---
 
 ## Troubleshooting
 
-**Error 401 en Apps Script:** El `ROUTINE_TOKEN` es incorrecto o venció.
-Regenerá el token en claude.ai/code/routines → Edit → API trigger → Regenerate.
+**Paso 0 aborta con "faltan env vars":** No configuraste `SLACK_CHANNEL` o
+`ASANA_PROJECT_GID` en Environment variables. Revisar Paso 3.
 
-**Error 400 "invalid_request_error":** Falta el header `anthropic-beta`.
-Ya está incluido en `trigger.gs` — verificá que estés usando la versión más reciente.
+**Paso 1 aborta con section no encontrada:** La section `"Para corregir"` no
+existe en el proyecto, o tiene otro nombre. Revisá `ASANA_SECTION_NAME` en
+Environment variables (o creá la section en Asana).
 
-**La Routine no encuentra el validador:**
-Verificar que el repo SCA esté conectado y que `sca/validators/` exista en el repo.
+**Paso 4 falla con HTTP 403 / 503 en la descarga del zip:** Falta el allowlist
+de `asanausercontent.com` en Network access. Revisar Paso 3.
 
-**El Paso 9 falla con "tool not available" o similar:** El conector de Asana no
-está habilitado en la Routine. Ir a **Connectors** y verificar que diga
-"Connected". Misma idea para Slack en el Paso 10.
+**El Paso 4 baja un archivo de pocos bytes y `file` no dice "Zip archive":**
+La URL firmada expiró (duran ~29 min). Muy improbable si todo corre en un solo
+batch, pero posible si hay un delay artificial entre Paso 1 y Paso 4. Basta
+con re-ejecutar.
 
-**El Paso 0 aborta con "faltan env vars":** No configuraste `SLACK_CHANNEL`
-o `ASANA_PROJECT_GID` en la sección Environment variables de la Routine.
+**Una task falla pero el batch sigue:** Es el comportamiento esperado (Paso 2
+del PROMPT — errores per-task no abortan el batch). Revisá el comentario que
+quedó en la task en Asana y los logs de la session de la Routine.
 
-**No se pudo clonar el repo del candidato:** Si el candidato usó un repo
-privado sin darte acceso, el `git clone` falla. En ese caso, la Routine
-alerta a Slack con el error y corta antes del análisis.
+**Task con frontend detectado:** La Routine no corrige frontend todavía. Dejó
+comentario en la task y Slack de aviso. Corregila manualmente.
+
+**Quiero re-correr una task que ya fue corregida:** Borrá la subtask
+`"Comentarios y corrección SCA"` de esa task en Asana. El próximo run la va a
+volver a procesar.
+
+**La Routine no encuentra el validator:** Verificá que el repo SCA esté
+conectado y que `sca/validators/` + `sca/reporter/` existan en el repo.

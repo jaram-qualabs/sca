@@ -19,8 +19,17 @@ Se usa en dos modos:
 
 - **Manual** (Cowork / Claude Code local): alguien le pide a Claude "corregí
   esta prueba" y Claude dispara el skill `sca-corrector`.
-- **Desatendido** (Routine): un Google Form del candidato dispara una Routine
-  en `claude.ai/code/routines` que ejecuta `routine/PROMPT.md`.
+- **Desatendido** (Routine con cron diario): una Routine en
+  `claude.ai/code/routines` corre todos los días a las 9am ART ejecutando
+  `routine/PROMPT.md`. La Routine poleá Asana buscando tasks en la section
+  "Para corregir" con un `.zip` adjunto, las corrige en batch y crea en
+  cada una una subtask `"Comentarios y corrección SCA"` con el feedback.
+  La presencia de esa subtask marca la task como ya corregida (idempotencia).
+
+> **Flow viejo (legacy).** Antes la Routine se disparaba por un Google Form
+> que llamaba al API de claude.ai vía Apps Script. Ese flow sigue
+> documentado en `routine/PROMPT-form.md.legacy` + `apps-script/` por si hay
+> que volver, pero **no está activo** — lo reemplazó el cron+Asana.
 
 ## Layout del repo
 
@@ -40,13 +49,16 @@ sca-corrector/               Skill de corrección manual + material asociado
     backend/                 Repos de candidatos de ejemplo (gitignored)
   candidato/                 Espacio scratch para correcciones locales (opcional)
 
-routine/                     Modo desatendido (Claude Routine)
-  PROMPT.md                  El prompt de la Routine (orquestación end-to-end)
+routine/                     Modo desatendido (Claude Routine con cron)
+  PROMPT.md                  ⭐ El prompt ACTIVO (cron diario + Asana-triggered)
+  PROMPT-form.md.legacy      El prompt viejo (disparado por Google Form) — no activo
   SETUP.md                   Cómo crear/configurar la Routine paso a paso
 
-apps-script/                 Trigger del Google Form que dispara la Routine
+apps-script/                 [LEGACY] Trigger del Google Form del flow viejo
   trigger.gs                 `onFormSubmit` → POST /v1/routines/<id>/fire
   SETUP.md                   Cómo configurar Form + Apps Script + secrets
+  # Inactivo hoy. Reemplazado por el cron+Asana. Se mantiene por si hay
+  # que revertir. Si el flow nuevo se estabiliza, se puede borrar.
 
 Prueba tecnica/              Material que se le entrega al candidato
   Prueba técnica - Backend.docx
@@ -87,7 +99,8 @@ reintroduzcas.
 - `SCA_ROOT`: raíz del repo. En la Routine es `/workspace`; en Cowork local es
   `/Users/javieraramberri/Projects/SCA`.
 - `SCA_WORK`: scratch dir efímero (`/tmp/sca_work` en la Routine). Ahí viven
-  `scores.json`, `texto_asana.txt`, `asana.json`.
+  `scores.json`, `texto_asana.txt`, `asana.json`. En el flow cron cada task
+  tiene su sub-dir `$SCA_WORK/<task_gid>/` para evitar colisiones.
 
 Para importar el paquete `sca` desde cualquier snippet:
 
@@ -104,11 +117,17 @@ from sca.reporter.templates import build_asana_text  # o lo que necesites
 - F28 — Parte A incorrecta
 - F29 — Parte B no cubre los 8 módulos
 
-**Manejo de errores en la Routine.** Patrón declarativo: si un paso crítico
-(Paso 8 scoring, Paso 9 Asana) falla, se postea `❌ *SCA — Fallo en Paso N*`
-en Slack vía el conector MCP y se aborta. El Paso 10 (Slack de éxito) es
-no-crítico: si falla, se logea y se declara éxito igual (Asana es el registro
-autoritativo).
+**Manejo de errores en la Routine (flow cron).** Dos niveles:
+
+- **Errores globales del batch** (MCP caído, section no existe, env vars
+  faltantes): patrón declarativo — alertar a Slack con `❌ *SCA — Fallo global
+  en Paso N*` y abortar.
+- **Errores por task** (zip corrupto, título sin paréntesis, stack que
+  no arranca): **no abortan el batch**. Se logean, se deja un comentario en
+  la task problemática (no subtask), y el loop sigue con la próxima.
+
+El Paso 12 del PROMPT (Slack por corrección exitosa) es no-crítico: si falla,
+se logea y se declara éxito igual (Asana es el registro autoritativo).
 
 **Idioma.** Contenido user-facing (Asana, Slack, mensajes de error) en
 español. Código y docstrings en español también. Commits: lo que quieras.
@@ -123,8 +142,9 @@ español. Código y docstrings en español también. Commits: lo que quieras.
 | Guías de scoring por criterio (F4, F20, F25, etc.)   | `sca-corrector/SKILL.md` Paso 6                      |
 | Lógica del validator de Parte A o B                  | `sca/validators/part_a.py` o `part_b.py`             |
 | Orquestación de la Routine (pasos, orden, env vars)  | `routine/PROMPT.md`                                  |
-| Cómo el Google Form dispara la Routine               | `apps-script/trigger.gs`                             |
+| Cadencia del cron, network allowlist, env vars prod  | `routine/SETUP.md`                                   |
 | Criterios críticos (F12/F28/F29)                     | `sca/reporter/templates.py` (`CRITERIOS_CRITICOS`)   |
+| Flow viejo (Google Form + Apps Script)               | `apps-script/trigger.gs` + `routine/PROMPT-form.md.legacy` (legacy, inactivo) |
 
 ## Testing
 
@@ -169,32 +189,55 @@ leé el motivo.
    no con voz de bot. Se migra a API keys cuando haga falta separación de
    identidad.
 
-4. **La Routine recibe `repo_url`, no un ZIP.** El Form pasó de "subí un ZIP"
-   a "pegá la URL de tu repo". Requiere repo público (ver "Pendientes").
+4. **La Routine baja el ZIP desde Asana (no clona un repo).** El flow cron
+   actual recibe el zip como attachment en la task de Asana. El flow viejo
+   (legacy) recibía un `repo_url` vía Google Form y lo clonaba — eso requería
+   que el repo fuera público y fallaba mudo con repos privados. El cron no
+   tiene ese problema: Asana entrega el zip vía URL firmada.
 
 5. **Templates centralizados en `sca/reporter/templates.py`.** Antes estaban
    duplicados entre `routine/PROMPT.md` (SECCIONES inline en el Paso 9) y
    `sca-corrector/SKILL.md` (template markdown). Cambiar uno y no el otro
    generó inconsistencias. Por favor no vuelvas a poner el template inline.
 
+6. **El nombre del candidato se extrae del título de la task de Asana**
+   (entre paréntesis). Se evaluaron custom fields de Asana pero requieren
+   disciplina adicional de RRHH al crear la task. La convención
+   `"... (Nombre Apellido)"` en el título es liviana y self-documenting.
+
+7. **Auto-detect del tipo de prueba (backend vs frontend).** No se usa un
+   custom field — se mira el `package.json` del zip. Si tiene React →
+   frontend (skipeado por ahora, sin skill). Si no → backend. Es menos
+   configurable pero cero fricción para RRHH.
+
 ## Pendientes conocidos
 
-- **Repos privados.** Hoy `git clone` va sin auth → si el candidato manda un
-  repo privado, falla en el Paso 2 y la Routine aborta. Plan: agregar
-  `GITHUB_TOKEN` como env var opcional y, si está seteada, inyectarla en la
-  URL del clone. Ver la discusión en el chat histórico.
+- **Skill de Frontend.** Hoy el Paso 5 del PROMPT detecta las pruebas de
+  frontend y las skipea con un aviso en Slack + comentario en la task. Falta
+  implementar el skill `sca-corrector-frontend` + los criterios y validators
+  equivalentes para evaluar la prueba de frontend (React, con tabs nivel 1
+  Content_module / Auth_module, etc.). Material de entrada en
+  `Prueba tecnica/Prueba técnica - Frontend.pdf`.
 
 - **Nivel no-determinístico.** El mismo test corrido dos veces puede dar
   niveles distintos (pasó con Prueba1 que salió Semi Senior y luego Junior
   con los mismos comentarios). La justificación del nivel que se guarda en
   `scores.json` ayuda a que un humano valide o corrija. Fix de fondo
-  pendiente: hacer el árbol de decisión del Paso 7 determinístico (reglas
-  explícitas por nivel en lugar de ANDs estrictos que dejan huecos en
-  perfiles mixtos).
+  pendiente: hacer el árbol de decisión del Paso 7 del skill determinístico
+  (reglas explícitas por nivel en lugar de ANDs estrictos que dejan huecos
+  en perfiles mixtos).
+
+- **`build_slack_text` todavía pide `repo_url` y `email`.** En el flow cron
+  no hay repo_url ni email — pasamos el permalink de la task de Asana como
+  `repo_url` y `"—"` como `email`. Funciona pero el label en Slack dice
+  "Repo:" cuando en realidad es un link a Asana. Cuando se jubile
+  definitivamente el flow viejo, refactorizar `templates.py` para usar
+  labels más neutros (`source_url` en vez de `repo_url`, email opcional).
 
 - **Skills reusables (análisis pendiente).** En algún momento extraer
-  `candidate-repo-bootstrap` (clonar + detectar stack + instalar deps) como
-  skill reusable, si aparece un segundo corrector. Hoy no se justifica.
+  `candidate-repo-bootstrap` (bajar zip / clonar repo + detectar stack +
+  instalar deps) como skill reusable, si aparece un segundo corrector. Hoy
+  no se justifica.
 
 ## Cómo trabajar en este repo con Claude
 
