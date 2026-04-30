@@ -185,10 +185,26 @@ Marcá Parte B como incorrecta solo si los módulos no quedan cubiertos, **no** 
 
 El **óptimo es 4 usuarios**. Hasta 5 es aceptable. Más de 5 es correcto pero no eficiente.
 
-**Guía para F31 — Asegura set mínimo (😀 bonus):**
-- F31 = 1 solo si el candidato *garantiza* el resultado mínimo: usando backtracking, fuerza bruta, o búsqueda exhaustiva. Un greedy (aunque sea inteligente como "rarest first") NO garantiza el óptimo para el problema Set Cover.
-- La prueba rápida: ¿el output de Parte B es exactamente 4 usuarios? Si retorna 5 o más, el algoritmo no encontró el mínimo → F31 = 0, independientemente de cómo esté implementado.
-- Si el output es 4 usuarios Y cubre los 8 módulos → F31 = 1.
+**Guía para F30 vs F31 — son criterios independientes:**
+
+F30 (Busca un set reducido) y F31 (Asegura el set mínimo, bonus) miden cosas distintas y se evalúan por separado. No es F31 ⇒ F30.
+
+- **F30 evalúa la *intención* de reducir**: ¿el algoritmo aplica alguna heurística de reducción (ordenar por módulos cubiertos, greedy "rarest first", priority queue, etc.) en vez de devolver un set arbitrario o todos los usuarios? Lectura literal del checklist: la presencia de la heurística, no el tamaño del resultado.
+- **F31 evalúa la *garantía* del óptimo**: ¿el algoritmo asegura el mínimo absoluto (backtracking, fuerza bruta, ILP/SAT solver)? Es un bonus.
+
+Casos típicos:
+
+| Algoritmo del candidato | Output | F30 | F31 |
+|---|---|---|---|
+| Greedy "rarest first" | 5 usuarios | ✅ | ❌ |
+| Greedy + el resultado es óptimo por suerte | 4 usuarios | ✅ | ❌ (no lo garantiza) |
+| Devuelve todos los usuarios sin reducir | 20 usuarios | ❌ | ❌ |
+| Fuerza bruta / backtracking / ILP / SAT | 4 usuarios | ❌ | ✅ |
+| Fuerza bruta + greedy de warm-start | 4 usuarios | ✅ | ✅ |
+
+El último caso (F30 ✅ + F31 ✅) es raro: requiere que el candidato implemente *primero* una heurística reductora *y luego* refine al óptimo. Si saltó directo al óptimo sin heurística intermedia, F30 = 0 aunque F31 = 1.
+
+La prueba rápida para F31: ¿el output de Parte B es exactamente 4 usuarios Y el algoritmo lo *garantiza*? Greedy con resultado 4 NO cuenta para F31 (puede dar 5 con otro dataset). Solo backtracking/brute force/ILP/SAT cuentan.
 
 ---
 
@@ -220,8 +236,11 @@ Para cada criterio asigná **0 o 1** y escribí una nota breve (1-2 líneas) jus
 - F20 = 1 si hay funciones/métodos con responsabilidades bien delimitadas en AMBAS partes. F20 = 0 si cualquiera de las dos partes tiene toda la lógica en un bloque único.
 
 **Guía para F4 — Documenta versión de tecnología:**
-- Aceptá la versión si aparece en cualquier parte del proyecto: README, comentario en el código, `package.json` (campo `engines`), `requirements.txt` con versiones pinneadas, instrucciones del IDE, o similar.
-- No exijas que esté en el README específicamente. Si el candidato menciona la versión en cualquier lado, F4 = 1.
+- El criterio evalúa **documentación humana** de la versión, no metadata implícita.
+- ✅ F4 = 1 si la versión aparece en algún lugar destinado a ser **leído por una persona**: README ("Requires Python 3.10+"), comentario en el código, instrucciones de instalación, sección "Requirements" o equivalente.
+- ❌ F4 = 0 si la versión solo aparece en archivos de configuración/manifesto (`pyproject.toml` `requires-python`, `.python-version`, `package.json` `engines`, `Dockerfile` `FROM python:3.X`) **sin** una mención correspondiente en la documentación. Esos archivos los lee el toolchain, no el lector que quiere reproducir el setup.
+- La regla práctica: si para enterarte de la versión hay que abrir un archivo de build/config, F4 = 0. Si está dicha en lenguaje natural en el README o instrucciones, F4 = 1.
+- `requirements.txt` con versiones pinneadas (`pytest==9.0.2`) cuenta porque es lectura humana habitual al revisar dependencias; pero **no** alcanza si solo pinnea libs y no menciona la versión del runtime.
 
 **Guía para F5 — Explica elecciones o decisiones:**
 - No exijas un análisis técnico formal. Basta con que el candidato mencione *por qué* tomó alguna decisión, aunque sea de forma casual o breve.
@@ -276,10 +295,24 @@ Si no:
 - ❌ = Solo explica CÓMO correr el código, sin explicar ninguna decisión de diseño.
 
 **Guía para "output consistente" (fila 8):**
-- ✅ = Ambas partes usan el mismo canal de output: ambas a consola O ambas a archivo.
-- ❌ = Parte A guarda en un archivo JSON Y Parte B imprime por consola → eso es inconsistente entre partes.
+- F8 evalúa el **canal** del output, no el formato del payload.
+- ✅ = Ambas partes usan el mismo canal: ambas a consola O ambas a archivo.
+- ❌ = Parte A guarda en un archivo JSON Y Parte B imprime por consola → inconsistente.
+- No penalices por F8 si una imprime un dict y la otra una lista, mientras ambas vayan al mismo canal. La consistencia del **formato** se evalúa en F13 ("imprime como pide la letra"), no acá.
 
 El tiempo lo encontrás en el README. Si no está reportado, no lo penalices — anotalo como observación.
+
+### Señales blandas que pueden bajar el nivel
+
+Algunas observaciones no están en la lista de 23 criterios pero pesan en la decisión final del nivel. No suman ni restan puntos al puntaje X/23, pero te autorizan a **bajar un escalón** (ej. de Semi Senior a Junior) cuando aparecen de forma marcada. Anotalas en `otras_notas` o en `aspectos`.
+
+- **Tono inadecuado en la documentación.** Afirmaciones grandilocuentes que no están respaldadas por el código (ej. nombrar técnicas avanzadas que no se usan, comparar con alternativas en lenguaje despectivo, justificar elecciones obvias con páginas de teoría). Señal de calibración: ¿el README sostiene un tono más sofisticado que la solución entregada?
+- **Mezcla de idiomas** en la documentación (ej. README empieza en español y termina en inglés, secciones en idiomas distintos sin razón). Un proyecto puede estar entero en inglés o entero en español; la mezcla atenta contra la presentación.
+- **Tiempo verbal narrativo en futuro** ("voy a usar Python", "primero voy a proponer una solución") en vez de presente descriptivo o pasado ("uso Python", "la solución implementa..."). El estándar de la documentación técnica es presente o pasado, no futuro narrativo: indica que el README se redactó como una bitácora en vez de como una descripción del entregable.
+- **Inconsistencias estéticas sistemáticas** (typos repetidos, formateo errático, capitalización inconsistente en títulos, mayúsculas aleatorias). Cada una individualmente es trivial; en conjunto desmerecen un trabajo que de otro modo estaría prolijo.
+- **Falta de error handling cuando el candidato lo declara explícitamente.** Si el README dice "asumo datos válidos" o "no manejo errores", eso ya está penalizado en F25 = 0. Pero si además el candidato presenta su solución como "sólida", "robusta" o "production-ready" mientras explícitamente omite error handling, eso es una señal de **desalineación entre la pretensión y la entrega** — bajalo un nivel.
+
+Estas señales no convierten un Semi Senior en no_suficiente. Pero sí pueden mover un Semi Senior a Junior, o un Junior a Trainee, cuando son varias o muy marcadas. Cuando uses una de estas para bajar el nivel, **mencionalo explícitamente en la justificación** (ej. "lo bajo a Junior por la mezcla de idiomas y el tono arrogante del README, que desmerecen una solución técnica correcta").
 
 ### Justificación del nivel
 

@@ -139,7 +139,8 @@ español. Código y docstrings en español también. Commits: lo que quieras.
 | Formato del texto de Asana / Slack                   | `sca/reporter/templates.py`                          |
 | Lista de criterios (agregar/quitar/reordenar)        | `sca/reporter/templates.py` (`CRITERIOS_23`, `SECCIONES`) |
 | Reglas para determinar el nivel                      | `sca-corrector/SKILL.md` Paso 7                      |
-| Guías de scoring por criterio (F4, F20, F25, etc.)   | `sca-corrector/SKILL.md` Paso 6                      |
+| Señales blandas que pueden bajar el nivel            | `sca-corrector/SKILL.md` Paso 7 ("Señales blandas")  |
+| Guías de scoring por criterio (F4, F20, F25, F30, F31, etc.) | `sca-corrector/SKILL.md` Paso 5 (F30/F31) y Paso 6 (resto) |
 | Lógica del validator de Parte A o B                  | `sca/validators/part_a.py` o `part_b.py`             |
 | Orquestación de la Routine (pasos, orden, env vars)  | `routine/PROMPT.md`                                  |
 | Cadencia del cron, network allowlist, env vars prod  | `routine/SETUP.md`                                   |
