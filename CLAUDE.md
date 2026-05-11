@@ -39,15 +39,26 @@ sca/                         Paquete Python — lógica del corrector sin UI
     part_a.py                Valida output de Parte A contra `datos prueba tecnica/`
     part_b.py                Valida que Parte B cubra los 8 módulos
   reporter/
-    templates.py             ⭐ FUENTE ÚNICA DE VERDAD (ver sección siguiente)
+    templates.py             ⭐ FUENTE ÚNICA DE VERDAD para BACKEND (23 criterios)
+    templates_frontend.py    ⭐ FUENTE ÚNICA DE VERDAD para FRONTEND (35 criterios)
+  asana/                     Wrappers HTTP directos para operaciones que el MCP de Asana no expone
+    attachments.py           Subir archivos a una task vía PAT (POST /api/1.0/attachments)
 
-sca-corrector/               Skill de corrección manual + material asociado
+sca-corrector/               Skill de corrección manual de BACKEND
   SKILL.md                   ⭐ Skill que Claude activa con "corregí esta prueba"
   references/                Material que Claude lee durante la corrección
     manual.md                Criterios detallados fila por fila (F3..F31)
     expected_output.md       Outputs esperados de Parte A y Parte B
     backend/                 Repos de candidatos de ejemplo (gitignored)
+    frontend/                Muestras de correcciones humanas + zips de candidatos FE
   candidato/                 Espacio scratch para correcciones locales (opcional)
+
+sca-corrector-frontend/      Skill de corrección manual de FRONTEND (React)
+  SKILL.md                   ⭐ Skill que Claude activa cuando detecta React
+  references/
+    manual.md                Criterios detallados fila por fila (F101..F135)
+    expected_part_a.md       Cómo validar Parte A (script o in-browser)
+    # mock visual: leer Prueba tecnica/Prueba técnica - Frontend.pdf
 
 routine/                     Modo desatendido (Claude Routine con cron)
   PROMPT.md                  ⭐ El prompt ACTIVO (cron diario + Asana-triggered)
@@ -74,20 +85,32 @@ CLAUDE.md                    Este archivo — contexto para Claude en el root
 README.md                    Placeholder mínimo (no es documentación útil todavía)
 ```
 
-## Fuente única de verdad: `sca/reporter/templates.py`
+## Fuente única de verdad: dos módulos paralelos
 
-**Si vas a cambiar el formato de cualquier output (texto de Asana, mensaje de
-Slack, schema de scores.json, lista de criterios, emojis, orden de secciones,
-etiquetas de nivel): tocá SOLO este archivo.** Tanto el skill como la Routine
-importan desde acá.
+**Backend** (`sca/reporter/templates.py`) y **frontend**
+(`sca/reporter/templates_frontend.py`) son los dos archivos cabeza. Si vas a
+cambiar el formato de cualquier output (texto de Asana, mensaje de Slack,
+schema de scores.json, lista de criterios, emojis, orden de secciones,
+etiquetas de nivel): tocá SOLO el archivo correspondiente. El skill y la
+Routine importan desde estos.
 
-Exporta:
+`templates.py` (backend) exporta:
 
 - `NIVEL_LABEL`, `CRITERIOS_23`, `CRITERIOS_CRITICOS`, `SECCIONES`
-- `build_scores_payload(scores, apellido, nombre, aspectos, otras_notas, feedback, nivel_justif)`
-- `build_asana_title(payload)`, `build_asana_text(payload)`
-- `build_slack_text(payload, repo_url, email, asana_url)`
-- `critical_failures(payload)` — devuelve qué críticos fallaron (F12/F28/F29)
+- `build_scores_payload(...)`, `build_asana_title(payload)`,
+  `build_asana_text(payload)`, `build_slack_text(...)`,
+  `critical_failures(payload)` — críticos: F12/F28/F29
+
+`templates_frontend.py` (frontend) exporta lo mismo pero adaptado a las 35
+filas del template oficial:
+
+- `CRITERIOS_FRONTEND` (35 ítems), `CRITERIOS_CRITICOS_FRONTEND` (4 críticos:
+  F108/F121/F132/F135), `SECCIONES_FRONTEND` (6 secciones)
+- Builders idénticos en signature: `build_scores_payload`, `build_asana_title`
+  (agrega sufijo "(Frontend)" al título), `build_asana_text`, `build_slack_text`
+  (header dice "Frontend"), `critical_failures`
+- Reutiliza `NIVEL_LABEL` desde `templates.py` para mantener un único set de
+  etiquetas de nivel
 
 Antes existía duplicación entre la Routine y el skill. Ya no — no la
 reintroduzcas.
@@ -113,9 +136,11 @@ from sca.reporter.templates import build_asana_text  # o lo que necesites
 **Criterios críticos.** Si cualquiera de estos es 0, el nivel es automáticamente
 `no_suficiente`:
 
-- F12 — hardcodea providers
-- F28 — Parte A incorrecta
-- F29 — Parte B no cubre los 8 módulos
+- Backend (`templates.py`): F12 (hardcodea providers), F28 (Parte A incorrecta),
+  F29 (Parte B no cubre los 8 módulos).
+- Frontend (`templates_frontend.py`): F108 (hardcodea providers), F121 (código
+  duplicado), F132 (mezcla componentes funcionales y no funcionales), F135
+  (Parte A incorrecta).
 
 **Manejo de errores en la Routine (flow cron).** Dos niveles:
 
@@ -136,15 +161,21 @@ español. Código y docstrings en español también. Commits: lo que quieras.
 
 | Querés cambiar...                                    | Tocá                                                 |
 |------------------------------------------------------|------------------------------------------------------|
-| Formato del texto de Asana / Slack                   | `sca/reporter/templates.py`                          |
-| Lista de criterios (agregar/quitar/reordenar)        | `sca/reporter/templates.py` (`CRITERIOS_23`, `SECCIONES`) |
-| Reglas para determinar el nivel                      | `sca-corrector/SKILL.md` Paso 7                      |
-| Señales blandas que pueden bajar el nivel            | `sca-corrector/SKILL.md` Paso 7 ("Señales blandas")  |
-| Guías de scoring por criterio (F4, F20, F25, F30, F31, etc.) | `sca-corrector/SKILL.md` Paso 5 (F30/F31) y Paso 6 (resto) |
-| Lógica del validator de Parte A o B                  | `sca/validators/part_a.py` o `part_b.py`             |
+| Formato del texto de Asana / Slack — backend         | `sca/reporter/templates.py`                          |
+| Formato del texto de Asana / Slack — frontend        | `sca/reporter/templates_frontend.py`                 |
+| Lista de criterios (agregar/quitar/reordenar) — BE   | `sca/reporter/templates.py` (`CRITERIOS_23`, `SECCIONES`) |
+| Lista de criterios — FE                              | `sca/reporter/templates_frontend.py` (`CRITERIOS_FRONTEND`, `SECCIONES_FRONTEND`) |
+| Reglas para determinar el nivel — BE                 | `sca-corrector/SKILL.md` Paso 7                      |
+| Reglas para determinar el nivel — FE                 | `sca-corrector-frontend/SKILL.md` Paso 7             |
+| Señales blandas que pueden bajar el nivel            | `sca-corrector/SKILL.md` Paso 7 (BE) — FE las hereda |
+| Guías de scoring por criterio (BE: F4, F20, F25...)  | `sca-corrector/SKILL.md` Paso 5/6                    |
+| Guías de scoring por criterio (FE: F102, F112, F128...) | `sca-corrector-frontend/references/manual.md`     |
+| Lógica del validator de Parte A o B (BE)             | `sca/validators/part_a.py` o `part_b.py`             |
+| Lógica del validator de Parte B (FE, screenshots)    | `sca/validators/part_b_frontend.py`                  |
+| Subir screenshots a Asana (via PAT, no MCP)          | `sca/asana/attachments.py`                           |
 | Orquestación de la Routine (pasos, orden, env vars)  | `routine/PROMPT.md`                                  |
 | Cadencia del cron, network allowlist, env vars prod  | `routine/SETUP.md`                                   |
-| Criterios críticos (F12/F28/F29)                     | `sca/reporter/templates.py` (`CRITERIOS_CRITICOS`)   |
+| Criterios críticos (F12/F28/F29 BE — F108/F121/F132/F135 FE) | `templates.py` o `templates_frontend.py` (`CRITERIOS_CRITICOS*`) |
 | Flow viejo (Google Form + Apps Script)               | `apps-script/trigger.gs` + `routine/PROMPT-form.md.legacy` (legacy, inactivo) |
 
 ## Testing
@@ -208,17 +239,37 @@ leé el motivo.
 
 7. **Auto-detect del tipo de prueba (backend vs frontend).** No se usa un
    custom field — se mira el `package.json` del zip. Si tiene React →
-   frontend (skipeado por ahora, sin skill). Si no → backend. Es menos
-   configurable pero cero fricción para RRHH.
+   frontend → invoca `sca-corrector-frontend`. Si no → backend → invoca
+   `sca-corrector`. Es menos configurable pero cero fricción para RRHH.
+
+8. **Skill y templates separados para backend vs frontend.** Aunque la
+   estructura es paralela (35 vs 23 criterios, 6 vs 4 secciones, mismas
+   firmas de builders), se mantienen como dos módulos independientes:
+   `sca/reporter/templates.py` + `sca-corrector/SKILL.md` para backend, y
+   `sca/reporter/templates_frontend.py` + `sca-corrector-frontend/SKILL.md`
+   para frontend. Razones: los checklists vienen de templates oficiales
+   distintos (`Requerimientos/Template Backend.xlsx` y `Template Frontend.xlsx`),
+   los críticos y secciones son específicos de cada uno, y evolucionan a
+   ritmos distintos. La única pieza compartida es `NIVEL_LABEL` (los 4
+   niveles son los mismos).
 
 ## Pendientes conocidos
 
-- **Skill de Frontend.** Hoy el Paso 5 del PROMPT detecta las pruebas de
-  frontend y las skipea con un aviso en Slack + comentario en la task. Falta
-  implementar el skill `sca-corrector-frontend` + los criterios y validators
-  equivalentes para evaluar la prueba de frontend (React, con tabs nivel 1
-  Content_module / Auth_module, etc.). Material de entrada en
-  `Prueba tecnica/Prueba técnica - Frontend.pdf`.
+- **Activar el flow de frontend en producción.** Hoy el Paso 5 del
+  `routine/PROMPT.md` detecta frontend y skipea con un aviso. El skill de
+  frontend, el validador con Playwright y el upload de screenshots ya
+  existen pero todavía no están enganchados a la Routine. Plan: validar
+  con varios candidatos reales hasta que la calibración esté razonable
+  (como hicimos con backend), después reemplazar el skip por la invocación
+  al skill + validator. Requiere `ASANA_PAT` configurado (ver `routine/SETUP.md`).
+
+- **Nivel no-determinístico.** El mismo test corrido dos veces puede dar
+  niveles distintos (pasó con Prueba1 que salió Semi Senior y luego Junior
+  con los mismos comentarios). La justificación del nivel que se guarda en
+  `scores.json` ayuda a que un humano valide o corrija. Fix de fondo
+  pendiente: hacer el árbol de decisión del Paso 7 del skill determinístico
+  (reglas explícitas por nivel en lugar de ANDs estrictos que dejan huecos
+  en perfiles mixtos).
 
 - **Nivel no-determinístico.** El mismo test corrido dos veces puede dar
   niveles distintos (pasó con Prueba1 que salió Semi Senior y luego Junior
@@ -242,13 +293,20 @@ leé el motivo.
 
 ## Cómo trabajar en este repo con Claude
 
-- Cuando Claude vaya a tocar scoring/formato, que **lea
+- Cuando Claude vaya a tocar scoring/formato de **backend**, que **lea
   `sca/reporter/templates.py` primero** — es el archivo cabeza.
+- Cuando vaya a tocar scoring/formato de **frontend**, que **lea
+  `sca/reporter/templates_frontend.py` primero** y revise
+  `sca-corrector-frontend/references/manual.md` para las guías.
 - Cuando toque orquestación o configuración de la Routine, que lea
   `routine/PROMPT.md` y `routine/SETUP.md` como par.
-- Cambios en el skill requieren leer `sca-corrector/SKILL.md` completo, no
-  chunks — el Paso 6 y el 7 tienen muchas guías específicas (F4, F20, F25…)
-  que se referencian entre sí.
+- Cambios en el skill de backend requieren leer `sca-corrector/SKILL.md`
+  completo, no chunks — el Paso 6 y el 7 tienen muchas guías específicas
+  (F4, F20, F25…) que se referencian entre sí.
+- Cambios en el skill de frontend requieren leer
+  `sca-corrector-frontend/SKILL.md` y `references/manual.md` juntos — el
+  manual tiene el detalle por criterio (F101..F135) y el SKILL tiene la
+  orquestación (instalación, levantar la app, screenshots, scoring).
 - Para pruebas de verificación, preferir el smoke test de arriba antes que
   correr la Routine completa (más rápido, más barato, mismo feedback para
   cambios de formato).

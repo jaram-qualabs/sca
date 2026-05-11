@@ -389,6 +389,19 @@ Por qué este nivel: <justificación>
 🎁 Feedback: ...
 ```
 
+### Las cuatro secciones narrativas son OBLIGATORIAS
+
+Las cuatro secciones narrativas — **`aspectos`, `otras_notas`, `feedback` y `nivel_justif`** — siempre tienen que tener contenido sustantivo. Nunca string vacío, nunca un solo guión `—`, nunca lista vacía. `build_scores_payload` ahora **lanza `ValueError`** si alguno está en blanco; aprovechá ese error como red de seguridad pero no llegues a dispararlo: armá los cuatro campos antes de invocar la función.
+
+Guía mínima por sección:
+
+- **`aspectos`**: lista con **al menos 2 ítems**, cada uno una observación concreta y específica del repo (positiva, negativa o ambas). Ejemplos buenos: `"README explica el por qué del greedy"`, `"requirements.txt tiene un path Mac-local que rompe reproducibilidad"`, `"tests no cubren Parte B"`. Ejemplos malos: `"buen trabajo"`, `"todo bien"`, `"-"`.
+- **`otras_notas`**: una o dos oraciones con datos de corrección que el corrector humano usaría para validar (tiempo reportado, anomalías del entorno, comportamientos raros del código, decisiones que merecen revisión). Si la corrección no tuvo nada raro, dejá una observación neutra fáctica (ej. *"Tests propios pasan; sin observaciones adicionales más allá del checklist."*).
+- **`feedback`**: el mensaje **dirigido al candidato**, en segunda persona, con dos bloques: *Lo que se destaca* y *Para mejorar*. Mínimo 5-6 líneas en total. Es el único campo que el candidato eventualmente lee.
+- **`nivel_justif`**: 2-3 oraciones que explican por qué cae en ese nivel y no en el contiguo (ver Paso 7).
+
+Si te quedás corto de contenido para alguna sección, **no es señal de que dejes vacío** — es señal de que no analizaste suficiente. Volvé al código del candidato.
+
 ---
 
 ## Paso 9 — Output final

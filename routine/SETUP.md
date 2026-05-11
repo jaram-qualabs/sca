@@ -95,14 +95,15 @@ Sin esto, el Paso 4 del PROMPT falla al descargar el zip firmado de Asana con
 
 ### Environment variables
 
-En la sección **Environment variables** de la Routine, agregá estas tres
-referencias (no son secretos):
+En la sección **Environment variables** de la Routine, agregá estas
+referencias:
 
-| Variable             | Valor                                                          |
-|----------------------|----------------------------------------------------------------|
-| `SLACK_CHANNEL`      | Canal destino, ej. `#sca-correcciones`                         |
-| `ASANA_PROJECT_GID`  | GID del proyecto Asana, ej. `1200429007986535`                 |
-| `ASANA_SECTION_NAME` | (opcional, default `Para corregir`) nombre de la section       |
+| Variable             | Tipo     | Valor                                                          |
+|----------------------|----------|----------------------------------------------------------------|
+| `SLACK_CHANNEL`      | público  | Canal destino, ej. `#sca-correcciones`                         |
+| `ASANA_PROJECT_GID`  | público  | GID del proyecto Asana, ej. `1200429007986535`                 |
+| `ASANA_SECTION_NAME` | público  | (opcional, default `Para corregir`) nombre de la section       |
+| `ASANA_PAT`          | **secret** | Personal Access Token de Asana, solo necesario para subir screenshots de frontend (ver Paso 4) |
 
 **Cómo conseguir los valores:**
 
@@ -111,11 +112,19 @@ referencias (no son secretos):
   **View channel details** → al final del modal, "Channel ID", empieza con `C...`).
 - `ASANA_PROJECT_GID`: abrí el proyecto en Asana; la URL tiene el formato
   `app.asana.com/0/1234567890123456/list`. El número es el GID.
+- `ASANA_PAT`: ver el Paso 4 más abajo — se genera desde Asana → Profile
+  → My Settings → Apps → Manage Developer Apps → Personal Access Tokens.
+  **Es un secret**, marcalo como tal en la Routine.
 
-> Los tokens de Slack/Asana **no van acá** — se configuran vía OAuth en los
-> conectores MCP (Paso 4).
-> El Paso 0.2 del PROMPT valida estas variables con fail-fast: si falta alguna,
-> la Routine corta con mensaje claro antes de hacer llamadas MCP.
+> Los tokens OAuth de los conectores MCP (Slack/Asana) **no van acá** —
+> se configuran vía la sección Connectors (Paso 4). `ASANA_PAT` es
+> distinto: es un token plano para llamadas HTTP directas que el conector
+> MCP no soporta (attachments).
+>
+> El Paso 0.2 del PROMPT valida `SLACK_CHANNEL` y `ASANA_PROJECT_GID` con
+> fail-fast. `ASANA_PAT` es **opcional** — si falta, la Routine procesa
+> todo igual pero los screenshots de frontend no se suben (queda un
+> warning en el log).
 
 ---
 
@@ -135,6 +144,30 @@ verificar que el panel muestre "Connected" antes de seguir.
 > creados con la identidad del dueño de la Routine (no con una voz de bot
 > dedicada). Aceptable por ahora; migrar a API keys (Slack webhook + Asana
 > PAT) cuando se necesite separación de identidad.
+
+### Paso 4.1 — Generar el Asana PAT (solo si vas a procesar pruebas de frontend)
+
+El conector MCP de Asana **no expone un tool para subir attachments**
+(archivos). El flow de frontend toma screenshots de la app del candidato
+con Playwright (Paso 5 de `sca-corrector-frontend/SKILL.md`) y las sube
+como attachments a la subtask de corrección — eso se hace vía HTTP directa
+al endpoint `POST /api/1.0/attachments` con un PAT.
+
+Generar el PAT:
+
+1. Ir a [Asana → Personal Access Tokens](https://app.asana.com/0/my-apps).
+2. **+ Create new token** → nombre sugerido: `SCA Routine — attachments`.
+3. **Copiar el token** ahora — solo se muestra una vez.
+4. En la Routine → **Environment variables** → agregar `ASANA_PAT` como
+   secret con ese valor.
+
+El PAT se usa **solo para subir attachments**. El resto de operaciones
+(crear subtask, agregar comentarios, descargar el zip del candidato)
+sigue pasando por el conector MCP con OAuth.
+
+Si no vas a procesar pruebas de frontend, podés omitir este paso —
+`ASANA_PAT` es opcional; sin él, la Routine sigue funcionando pero los
+screenshots quedan solo en el VM de la session y desaparecen al terminar.
 
 ---
 

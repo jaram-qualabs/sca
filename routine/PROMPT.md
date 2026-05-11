@@ -476,6 +476,13 @@ Para cada criterio asigná **0 o 1** con justificación breve. Reglas críticas:
 Armá el payload con el builder de `sca/reporter/templates.py` y persistilo en
 `$SCA_WORK/<task_gid>/scores.json`.
 
+> ❗ **Las cuatro secciones narrativas son obligatorias** — `aspectos`,
+> `otras_notas`, `feedback` y `nivel_justif` deben tener contenido sustantivo
+> (no string vacío, no `—`, no lista vacía). `build_scores_payload` lanza
+> `ValueError` si alguno está en blanco. Hubo correcciones donde estas
+> secciones quedaron vacías en Asana — eso no es aceptable. Llená los cuatro
+> antes de invocar la función.
+
 ```python
 import os, sys, json
 sys.path.insert(0, os.environ['SCA_ROOT'])
@@ -583,6 +590,59 @@ with open(f"{work}/asana.json", 'w') as f:
 
 print(f"✅ Subtask creada: {subtask_url}")
 ```
+
+### 11.4 — Subir screenshots (solo frontend, no crítico)
+
+Solo aplica al flow de **frontend**: el validador
+`sca/validators/part_b_frontend.py` deja screenshots en
+`$SCA_WORK/<task_gid>/screenshots/` (o en `.sca-screenshots/` dentro del
+repo del candidato). Las subimos como attachments a la subtask que acaba
+de crear el Paso 11.2.
+
+El conector MCP de Asana **no expone** `add_attachment`, así que usamos un
+wrapper HTTP directo con un PAT (Personal Access Token) seteado como
+`$ASANA_PAT`. Ver `routine/SETUP.md` para cómo generar el PAT.
+
+```python
+import os, sys, json
+from pathlib import Path
+sys.path.insert(0, os.environ['SCA_ROOT'])
+from sca.asana.attachments import upload_attachments
+
+work = f"{os.environ['SCA_WORK']}/{os.environ['TASK_GID']}"
+
+# Cargar el subtask_gid persistido en 11.3
+with open(f"{work}/asana.json") as f:
+    asana_info = json.load(f)
+subtask_gid = asana_info['subtask_gid']
+
+# Listar todos los PNGs de la corrida actual
+screenshots_dir = Path(f"{work}/screenshots")
+pngs = sorted(str(p) for p in screenshots_dir.glob('*.png')) if screenshots_dir.is_dir() else []
+
+if not pngs:
+    print('ℹ️ Sin screenshots para subir (¿era backend o no se generaron?). Skip.')
+else:
+    pat = os.environ.get('ASANA_PAT')
+    if not pat:
+        # No es crítico — logeamos y seguimos. La corrección ya quedó en Asana
+        # con el texto; las screenshots solo no aparecen como attachments.
+        print('⚠️ ASANA_PAT no seteado — skip upload de screenshots.')
+    else:
+        result = upload_attachments(subtask_gid, pngs, pat)
+        print(result.summary())
+        # Persistir los GIDs/URLs para el Paso 12 (los podemos mencionar en Slack)
+        with open(f"{work}/screenshots_upload.json", 'w') as f:
+            json.dump({
+                'uploaded': result.uploaded,
+                'failed': result.failed,
+            }, f, indent=2, ensure_ascii=False)
+```
+
+Errores per-file **no abortan** el batch — el wrapper los logea y sigue
+con el próximo PNG. Si el PAT está mal o expirado, todos fallan y se
+imprime el error, pero la corrección se declara exitosa igual (Asana ya
+tiene el feedback en el texto de la subtask).
 
 ---
 

@@ -106,13 +106,39 @@ def build_scores_payload(
     que los pasos de Asana y Slack no tengan que recalcularlo.
 
     `scores` debe tener las 23 filas de `CRITERIOS_23` más la fila 34 (nivel).
+
+    Los campos `aspectos`, `otras_notas`, `feedback` y `nivel_justif` son
+    OBLIGATORIOS y deben tener contenido sustantivo (no string vacío, no `—`,
+    no lista vacía). El texto de Asana siempre debe contener las tres
+    secciones rellenas — corrigieron candidatos donde quedaron vacías y eso
+    no es aceptable. Si alguno falta, esta función lanza `ValueError` para
+    forzar al caller a llenarlos antes de generar el texto.
     """
+    # Validación dura: las cuatro secciones narrativas son obligatorias.
+    # Esto previene que el texto de Asana salga con secciones en blanco o
+    # con un solo guión `—` cuando el LLM se olvida de llenarlas.
+    _missing: List[str] = []
+    if not aspectos or not any(a and a.strip() and a.strip() != '—' for a in aspectos):
+        _missing.append('aspectos (lista de al menos 1 ítem con contenido)')
+    if not otras_notas or not otras_notas.strip() or otras_notas.strip() == '—':
+        _missing.append('otras_notas')
+    if not feedback or not feedback.strip() or feedback.strip() == '—':
+        _missing.append('feedback')
+    if not nivel_justif or not nivel_justif.strip() or nivel_justif.strip() == '—':
+        _missing.append('nivel_justif')
+    if _missing:
+        raise ValueError(
+            'build_scores_payload: faltan campos obligatorios: '
+            + ', '.join(_missing)
+            + '. Las secciones del texto de Asana NUNCA pueden ir vacías.'
+        )
+
     nivel_val = scores[34]
     puntaje = sum(1 for f in CRITERIOS_23 if scores.get(f) == 1)
 
     return {
         'scores':      scores,
-        'aspectos':    aspectos or [],
+        'aspectos':    aspectos,
         'otras_notas': otras_notas,
         'feedback':    feedback,
         'candidato':   {'apellido': apellido, 'nombre': nombre},
