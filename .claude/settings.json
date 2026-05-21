@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "mcp__Asana__get_project",
+      "mcp__Asana__get_projects",
+      "mcp__Asana__get_tasks",
+      "mcp__Asana__get_task",
+      "mcp__Asana__get_attachments",
+      "mcp__Asana__create_tasks",
+      "mcp__Asana__add_comment",
+      "mcp__Asana__update_tasks",
+      "mcp__Slack__slack_send_message",
+      "mcp__Slack__slack_search_channels"
+    ]
+  }
+}
