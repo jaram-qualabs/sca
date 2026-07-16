@@ -60,6 +60,7 @@ o `503 "DNS cache overflow"`.
 | `SLACK_CHANNEL`      | Canal donde postear correcciones y alertas (ej. `#sca-correcciones`).  |
 | `ASANA_PROJECT_GID`  | GID del proyecto SCA en Asana. En la URL: `app.asana.com/0/<GID>/...`. |
 | `ASANA_SECTION_NAME` | Nombre de la section a polear. Default: `Para corregir`.               |
+| `ASANA_V2_TAG`       | Tag de Asana que marca una prueba **nueva (v2/HLS)**. Default: `sca-v2`. |
 
 Exportalas como env vars de la Routine — no son sensibles, pero las centralizamos
 acá para que los pasos las lean sin hardcodear valores.
@@ -164,6 +165,9 @@ Usá el tool MCP de Asana para listar tasks de la section (`get_tasks` con
 - `gid`
 - `name` (título)
 - `permalink_url` (URL humana a la task)
+- `tags` (pedirlos en el mismo call con `opt_fields=tags.name` o equivalente —
+  no hagas un call extra por task solo para esto; si el tool no los devuelve,
+  seguí sin tags: el Paso 5.0 tiene fallback)
 
 ### 1.3 — Filtrar tasks ya corregidas
 
@@ -203,6 +207,12 @@ cat "$SCA_ROOT/sca-corrector-frontend/references/criteria_routine.md"
 > Si el batch solo tiene candidatos backend podés omitir el segundo `cat`,
 > pero dado que no sabés el tipo hasta el Paso 5, leerlos ambos de entrada
 > es más seguro y el costo es fijo (~220 líneas una sola vez).
+>
+> **Ahorro v1/v2:** estos criterios son SOLO para tasks **v1**. Si por los
+> tags del Paso 1.2 ya sabés que **todas** las candidatas son v2 (tag
+> `$ASANA_V2_TAG`), salteá este paso por completo — el sub-flujo v2
+> (`routine/v2/CORRECCION.md`) trae sus criterios inline y se lee recién
+> cuando aparece la primera task v2.
 
 ---
 
@@ -325,6 +335,41 @@ fi
 
 ls -la candidato/ | head -20
 ```
+
+---
+
+## Paso 5.0 — Detectar versión de la prueba (v1 / v2)
+
+Existen dos generaciones de la prueba técnica conviviendo: la **v1** (Parte A/B
+con los JSONs `u0..u19`) y la **v2** (manifests HLS, ver `new-technical-test/`).
+Dos señales de detección, en orden, con costo casi nulo:
+
+1. **Tag de Asana (primaria):** si la task tiene el tag `$ASANA_V2_TAG`
+   (default `sca-v2`) entre los tags que ya trajiste en el Paso 1.2 →
+   `PRUEBA_VERSION=v2`. Sin calls extra.
+2. **Sniff del zip (fallback,** por si RRHH olvidó el tag**):** una línea de
+   bash sobre lo ya descomprimido en el Paso 4. No leas archivos al contexto.
+
+```bash
+C="$SCA_WORK/$TASK_GID/candidato"
+if find "$C" -name hls_service.py -not -path "*/node_modules/*" 2>/dev/null | grep -q . \
+   || grep -rqs -e filter_manifest -e parse_manifest --include="*.js" --include="*.jsx" \
+        --include="*.ts" --include="*.tsx" --include="*.py" --exclude-dir=node_modules "$C" \
+   || grep -qs '"hls.js"' "$C"/package.json 2>/dev/null \
+   || grep -qs '^m3u8' "$C"/requirements.txt 2>/dev/null; then
+  export PRUEBA_VERSION=v2
+else
+  export PRUEBA_VERSION=v1
+fi
+echo "Versión de prueba: $PRUEBA_VERSION"
+```
+
+- **v1** → continuá con el Paso 5 (flujo actual, sin cambios).
+- **v2** → leé `$SCA_ROOT/routine/v2/CORRECCION.md` (**una sola vez por
+  batch** — si ya lo leíste para una task anterior, no lo releas) y seguí ese
+  sub-flujo. Los Pasos 5 a 12 de este archivo **no aplican** a tasks v2; el
+  cleanup (Paso 13) y el resumen (Paso 14) sí — en el resumen marcá estas
+  tasks como `[v2-BE]` / `[v2-FE]`.
 
 ---
 

@@ -31,6 +31,21 @@ Se usa en dos modos:
 > documentado en `routine/PROMPT-form.md.legacy` + `apps-script/` por si hay
 > que volver, pero **no está activo** — lo reemplazó el cron+Asana.
 
+## SCA v2 (prueba técnica nueva — HLS) 🚧
+
+Existe una **segunda generación de la prueba técnica** (manipulación de
+manifests HLS, ver `new-technical-test/`) con su propio corrector **v2 en
+beta**, que convive con v1 hasta que la prueba vieja se elimine. Todo v2 vive
+en `sca/v2/` (templates backend y frontend), `sca-corrector-v2/`,
+`sca-corrector-frontend-v2/` y `new-technical-test/`. **v2 no importa nada de
+v1** — el plan de convivencia, el mapeo de criterios viejos→nuevos y el
+checklist para eliminar v1 están en `sca/v2/PLAN.md`. La Routine rutea
+v1/v2 en el Paso 5.0 de `routine/PROMPT.md` (tag de Asana `sca-v2` +
+sniff del zip como fallback) y el sub-flujo v2 vive autocontenido en
+`routine/v2/CORRECCION.md`, que se lee solo si el batch tiene tasks v2. Si vas a tocar scoring
+o formato de v2, leé primero `sca/v2/reporter/templates.py` (BE) o
+`templates_frontend.py` (FE). El resto de este archivo describe v1.
+
 ## Layout del repo
 
 ```
