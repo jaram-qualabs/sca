@@ -99,10 +99,26 @@ Diseñada para costo de tokens casi nulo:
    cuando todas las tasks son v2, se saltea la pre-carga de criterios v1 del
    Paso 1.5.
 
-Estado: **v2 backend corre completo** en la Routine (batería funcional con
-fixture local, diff contra el commit inicial, Parte 2 contra el dataset
-oficial, templates v2). **v2 frontend** se detecta pero deja la subtask
-marcadora con aviso de corrección manual (skill FE v2 en beta sin calibrar).
+Estado: **v2 backend y v2 frontend corren completos** en la Routine.
+Backend: batería funcional con fixture local, diff contra el commit inicial,
+Parte 2 contra el dataset oficial. Frontend (habilitado 2026-07-16): validador
+`sca/v2/validators/frontend.py` (Playwright + screenshots) contra el backend
+provisto y un fixture HLS local generado por `sca/v2/validators/fixture.py`.
+
+Dos aprendizajes técnicos del frontend que NO hay que revertir:
+
+1. **El fixture del player es VP9+Opus, no H.264.** El chromium de Playwright
+   no trae codecs propietarios: con el stream h264 de la letra, hls.js corta
+   en `manifestIncompatibleCodecsError` y el chequeo de reproducción da falso
+   negativo siempre. Con VP9+Opus la reproducción es real (`currentTime`
+   avanza, se piden segmentos). La señal robusta de F314 es
+   `segment_requests > 0`.
+2. **Los segmentos del fixture fuerzan keyframes exactos cada 4s.** Sin eso,
+   EXTINF (p. ej. 5.12s) excede TARGETDURATION y el `validate()` del backend
+   provisto rechaza la media playlist → `parse_manifest` devuelve **500**
+   (bug del código base: `media_playlist={}` rompe su response_model). Ojo:
+   un candidato puede toparse con este mismo 500 usando manifests reales —
+   no es culpa de su app; tenerlo en cuenta al corregir F308/F327.
 
 ## Datos de referencia de la prueba nueva
 
@@ -145,10 +161,11 @@ EOF
   y 13/29 (FE) → trainee. Propuestas en discusión: bajar umbral junior
   (BE ≥14, FE ≥13) o regla de piso funcional (críticos + funcionalidad
   completa → mínimo junior).
-- **Habilitar frontend v2 en la Routine**: la detección ya rutea FE v2, pero
-  deja aviso de corrección manual. Cuando el skill FE v2 esté calibrado,
-  reemplazar el skip de `routine/v2/CORRECCION.md` §V2.2 por el flujo completo
-  (Playwright + screenshots, como hace v1-FE).
+- ~~Habilitar frontend v2 en la Routine~~ — hecho (2026-07-16): flujo completo
+  en `routine/v2/CORRECCION.md` §V2.2 con validador + fixture. Verificado
+  contra los dos candidatos simulados (el validador discriminó bien: SS con
+  4 charts y filtro OK; JR con 0 charts canvas/svg). Falta calibrar con
+  candidatos reales.
 - **Validators v2** (opcional): script que verifique la Parte 2 del candidato
   contra el óptimo calculado por fuerza bruta/ILP (`sca/v2/validators/`),
   y validación funcional de la Parte 1 con requests parametrizadas.

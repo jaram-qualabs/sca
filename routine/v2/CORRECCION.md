@@ -19,19 +19,121 @@ fi
 echo "Tipo v2: $TIPO_V2"
 ```
 
-## V2.2 — Frontend v2: aún no automatizado (skip con marca)
+## V2.2 — Frontend v2: corrección completa
 
-El corrector FE v2 (`sca-corrector-frontend-v2`) está en beta sin calibrar.
-Hasta habilitarlo, crear la subtask marcadora (misma idempotencia que v1) y
-seguir con la próxima task — **no** es un error per-task:
+### V2.2.a — Setup (una vez por batch, solo si hay tasks FE v2)
 
-- `name`: `"Comentarios y corrección SCA"`
-- `notes`: `"Prueba v2 de FRONTEND detectada. La corrección automática v2-FE
-  todavía no está habilitada en la Routine — corregir manualmente con el
-  skill sca-corrector-frontend-v2 (Cowork/Claude Code) y pegar el resultado
-  acá."`
-- Postear en Slack (no crítico): `⚠️ *SCA v2 — FE detectado, corrección manual
-  pendiente* — <permalink de la task>`.
+```bash
+# Playwright + chromium (mismo stack que FE v1)
+python3 -c "from playwright.sync_api import sync_playwright" 2>/dev/null \
+  || pip install --break-system-packages playwright --quiet
+python3 -m playwright install chromium --with-deps 2>&1 | tail -1
+
+# Backend FastAPI provisto (la SPA del candidato lo consume)
+cd "$SCA_ROOT/new-technical-test/Frontend/Backend"
+pip install -r requirements.txt --break-system-packages --quiet
+python3 -m uvicorn src.app:app --port 8000 &>/tmp/sca_v2_backend.log &
+for i in $(seq 1 15); do curl -s -o /dev/null http://127.0.0.1:8000/docs && break; sleep 1; done
+
+# Fixture HLS local (VP9+Opus). ⚠️ NO usar el stream de mux para el chequeo
+# del player: el chromium de Playwright no decodifica h264/aac y daría falso
+# negativo siempre. El fixture local reproduce de verdad.
+python3 -m sca.v2.validators.fixture --dir /tmp/sca_hls_fixture --port 9000 &
+sleep 2
+```
+
+### V2.2.b — Por task: instalar, validar, screenshots
+
+```bash
+cd "$SCA_WORK/$TASK_GID/candidato" && git log --oneline | head -10   # F304-F306
+npm install --no-audit --no-fund
+```
+
+```python
+import os, sys
+sys.path.insert(0, os.environ['SCA_ROOT'])
+from sca.v2.validators.frontend import validate
+
+work = f"{os.environ['SCA_WORK']}/{os.environ['TASK_GID']}"
+r = validate(
+    f"{work}/candidato",
+    manifest_url='http://127.0.0.1:9000/master.m3u8',
+    output_dir=f"{work}/screenshots",
+)
+print(r.summary())
+```
+
+**Mapeo señales → criterios** (el validador junta evidencia; el score lo
+decidís vos mirando también las screenshots y el código):
+
+| Señal | Criterio | Nota |
+|---|---|---|
+| `validation_shown` + screenshot 02 | F307 ❗ | Verificá en la screenshot que sea el resultado de validación, no un error genérico de la app |
+| `charts_count ≥ 3` + screenshot 02 | F309; F310 se juzga mirando la screenshot | Barras CSS no cuentan como canvas/svg — mirá la screenshot antes de dar 0 |
+| `sliders_count ≥ 2` | F311 | 1 solo slider o inputs de texto = 0 |
+| `filter_applied` + screenshot 03 | F312 ❗ | |
+| `segment_requests > 0` | F314 ❗ | `video_ready/playing` son bonus de evidencia |
+| `media_selectors_count` + código | F315/F316 | Confirmar en el código que los selects cambian `currentLevel` / `audioTrack` |
+| screenshots 01-04 vs Figma | F317, F319 | El Figma está linkeado en el PDF de la letra |
+| screenshot 05 (mobile) | F318 | |
+
+F308 (errores claros) y F313 (estados de carga): evaluar por código
+(try/catch + render del error) y, si hace falta, repetir el validate con
+`manifest_url='http://127.0.0.1:9000/no-existe.m3u8'`.
+
+### V2.2.c — Criterios FE (29) y árbol de nivel
+
+**Documentación:** F301 cómo correr · F302 versiones/deps · F303 decisiones.
+**Git:** F304 `.git` con commits del candidato · F305 incrementales (≥3) ·
+F306 mensajes descriptivos.
+**Dashboard:** F307 ❗ valida en tiempo real · F308 errores claros · F309
+gráficos (resolución, bandwidth, codecs, duración) · F310 gráficos acordes.
+**Filtro:** F311 sliders · F312 ❗ obtiene el manifest filtrado · F313
+loading/errores/rango vacío.
+**Player:** F314 ❗ reproduce variante del parse_manifest · F315 cambio de
+resolución · F316 cambio de pista de audio.
+**UI:** F317 similitud Figma · F318 responsive · F319 consistencia visual.
+**Calidad:** F320 componentes chicos/reutilizables · F321 separa lógica de
+presentación (hooks/servicios) · F322 manejo de estado · F323 naming y
+convenciones · F324 solo funcionales+hooks · F325 ❗ sin código duplicado ·
+F326 estilos organizados · F327 error handling con la API · F328 comentarios
+adecuados · F329 tests (bonus).
+
+**Nivel (determinístico, en orden):**
+1. Algún ❗ (F307/F312/F314/F325) = 0 → `no_suficiente` (0).
+2. Puntaje ≥ 24/29 **y** F307-F316 todos 1 **y** F304-F306 = 1 → `semi_senior` (3).
+3. Puntaje ≥ 18/29 → `junior` (2).
+4. Puntaje ≥ 12/29 → `trainee` (1).
+5. Menos → `no_suficiente` (0).
+
+### V2.2.d — Payload, subtask, screenshots y Slack
+
+```python
+import os, sys, json
+sys.path.insert(0, os.environ['SCA_ROOT'])
+from sca.v2.reporter.templates_frontend import (
+    build_scores_payload, build_asana_text, build_slack_text)
+
+scores = {f: <0|1> for f in range(301, 330)}  # completar los 29
+payload = build_scores_payload(
+    scores, nivel=<0-3>,
+    apellido=os.environ['CANDIDATE_APELLIDO'], nombre=os.environ['CANDIDATE_NOMBRE'],
+    aspectos=["<...>"], otras_notas="<incluir el summary() del validador>",
+    feedback="<...>", nivel_justif="<regla aplicada + 1-2 oraciones>",
+)
+work = f"{os.environ['SCA_WORK']}/{os.environ['TASK_GID']}"
+json.dump(payload, open(f"{work}/scores.json", 'w'), ensure_ascii=False, indent=2)
+texto = build_asana_text(payload)
+# Subtask: name = "Comentarios y corrección SCA" (marcador), notes = texto.
+# Screenshots: subirlas a la subtask con el MISMO snippet del Paso 11.4 del
+#   PROMPT principal (sca.asana.attachments + ASANA_PAT) — los PNG están en
+#   $SCA_WORK/<task_gid>/screenshots/.
+mensaje = build_slack_text(payload,
+    source_url=os.environ['TASK_PERMALINK'], asana_url='<subtask_url>')
+```
+
+Al terminar el batch FE v2: matar uvicorn y el fixture server. Resumen del
+Paso 14 con `[v2-FE]`.
 
 ## V2.3 — Backend v2: preparar y levantar el servicio del candidato
 

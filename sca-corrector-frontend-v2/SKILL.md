@@ -68,11 +68,31 @@ Si el candidato modificó/embebió el backend, usá su versión y anotalo en
 Igual que backend v2: `.git` presente con commits del candidato (F304),
 commits incrementales (F305), mensajes descriptivos (F306).
 
-## Paso 4 — Validación funcional con Playwright (F307–F316)
+## Paso 4 — Validación funcional con el validator v2 (F307–F316)
 
-Usá Playwright (como el validator de FE v1) para recorrer la app y sacar
-screenshots como evidencia. Manifest de prueba:
-`https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8`
+Usá el validador automático, que levanta la app, la recorre con Playwright
+headless y deja 5 screenshots como evidencia:
+
+```bash
+# Fixture HLS local (VP9+Opus) — ⚠️ no uses el stream de mux para el chequeo
+# del player: el chromium de Playwright no decodifica h264/aac.
+python3 -m sca.v2.validators.fixture --dir /tmp/sca_hls_fixture --port 9000 &
+```
+
+```python
+import os, sys
+sys.path.insert(0, os.environ['SCA_ROOT'])
+from sca.v2.validators.frontend import validate
+r = validate('<carpeta_candidato>',
+             manifest_url='http://127.0.0.1:9000/master.m3u8',
+             output_dir='<work>/screenshots')
+print(r.summary())
+```
+
+Señales → criterios: `validation_shown`→F307, `charts_count`→F309,
+`sliders_count`→F311, `filter_applied`→F312, `segment_requests>0`→F314,
+`media_selectors_count`+código→F315/F316. El detalle y los casos manuales
+están en `routine/v2/CORRECCION.md` §V2.2.b.
 
 **Req 1 — Dashboard (F307–F310):**
 - F307 (CRÍTICO): ingresar la URL valida y muestra el resultado sin recargar.
