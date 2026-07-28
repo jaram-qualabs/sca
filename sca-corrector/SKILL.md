@@ -189,6 +189,8 @@ El **óptimo es 4 usuarios**. Hasta 5 es aceptable. Más de 5 es correcto pero n
 
 F30 (Busca un set reducido) y F31 (Asegura el set mínimo, bonus) miden cosas distintas y se evalúan por separado. No es F31 ⇒ F30.
 
+⚠️ **Regla mecánica — aplicala primero, es el caso más común:** si el algoritmo de Parte B prueba combinaciones de tamaño creciente hasta encontrar cobertura (`for size in 1..N: for combo in combinations(..., size): if covers: return combo`) o hace backtracking/ILP/SAT equivalente — **sin** un paso previo de heurística/orden (greedy, rarest-first, priority queue) — es **SIEMPRE F30 = 0**, sin importar que el resultado sea el óptimo exacto y sin importar cuán elegante sea la implementación (poda de dominados, cota inferior, etc. son optimizaciones de la búsqueda exacta, no heurísticas). Esto es contraintuitivo — "prueba tamaños chicos primero" *suena* a que busca un set reducido — pero la letra del checklist premia la heurística de reducción, no el resultado. Es el patrón más frecuente en candidatos que resuelven bien Parte B, así que revisalo con cuidado: es fácil marcarlo ✅ por error.
+
 - **F30 evalúa la *intención* de reducir**: ¿el algoritmo aplica alguna heurística de reducción (ordenar por módulos cubiertos, greedy "rarest first", priority queue, etc.) en vez de devolver un set arbitrario o todos los usuarios? Lectura literal del checklist: la presencia de la heurística, no el tamaño del resultado.
 - **F31 evalúa la *garantía* del óptimo**: ¿el algoritmo asegura el mínimo absoluto (backtracking, fuerza bruta, ILP/SAT solver)? Es un bonus.
 
@@ -202,7 +204,7 @@ Casos típicos:
 | Fuerza bruta / backtracking / ILP / SAT | 4 usuarios | ❌ | ✅ |
 | Fuerza bruta + greedy de warm-start | 4 usuarios | ✅ | ✅ |
 
-El último caso (F30 ✅ + F31 ✅) es raro: requiere que el candidato implemente *primero* una heurística reductora *y luego* refine al óptimo. Si saltó directo al óptimo sin heurística intermedia, F30 = 0 aunque F31 = 1.
+El último caso (F30 ✅ + F31 ✅) es raro: requiere que el candidato implemente *primero* una heurística reductora *y luego* refine al óptimo. Si saltó directo al óptimo sin heurística intermedia, F30 = 0 aunque F31 = 1 — ver la regla mecánica arriba.
 
 La prueba rápida para F31: ¿el output de Parte B es exactamente 4 usuarios Y el algoritmo lo *garantiza*? Greedy con resultado 4 NO cuenta para F31 (puede dar 5 con otro dataset). Solo backtracking/brute force/ILP/SAT cuentan.
 
